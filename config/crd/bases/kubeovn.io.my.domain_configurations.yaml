@@ -1,0 +1,679 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: configurations.kubeovn.io.my.domain
+spec:
+  group: kubeovn.io.my.domain
+  names:
+    kind: Configuration
+    listKind: ConfigurationList
+    plural: configurations
+    singular: configuration
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: Configuration is the Schema for the configurations API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ConfigurationSpec defines the desired state of Configuration.
+            properties:
+              cniConf:
+                default: {}
+                properties:
+                  cniBinDir:
+                    default: /opt/cni/bin
+                    type: string
+                  cniConfFile:
+                    default: /kube-ovn/01-kube-ovn.conflist
+                    type: string
+                  cniConfigDir:
+                    default: /etc/cni/net.d
+                    type: string
+                  cniConfigPriority:
+                    default: "01"
+                    type: string
+                  localBinDir:
+                    default: /usr/local/bin
+                    type: string
+                  mountLocalBinDir:
+                    type: boolean
+                type: object
+              components:
+                default: {}
+                properties:
+                  OVSDBConTimeout:
+                    default: 3
+                    minimum: 1
+                    type: integer
+                  OVSDBInactivityTimeout:
+                    default: 10
+                    minimum: 1
+                    type: integer
+                  checkGateway:
+                    default: true
+                    type: boolean
+                  enableANP:
+                    type: boolean
+                  enableBindLocalIP:
+                    default: true
+                    type: boolean
+                  enableExternalVPC:
+                    default: true
+                    type: boolean
+                  enableIC:
+                    type: boolean
+                  enableKeepVMIP:
+                    default: true
+                    type: boolean
+                  enableLB:
+                    default: true
+                    type: boolean
+                  enableLBSVC:
+                    type: boolean
+                  enableLiveMigrationOptimize:
+                    default: true
+                    type: boolean
+                  enableNATGateway:
+                    default: true
+                    type: boolean
+                  enableNP:
+                    default: true
+                    type: boolean
+                  enableOVNIPSec:
+                    type: boolean
+                  enableTProxy:
+                    type: boolean
+                  hardwareOffload:
+                    type: boolean
+                  logicalGateway:
+                    type: boolean
+                  lsCtSkipOstLportIPS:
+                    default: true
+                    type: boolean
+                  lsDnatModDlDst:
+                    default: true
+                    type: boolean
+                  secureService:
+                    type: boolean
+                  setVLANTxOff:
+                    type: boolean
+                  u2oInterconnection:
+                    type: boolean
+                type: object
+              debug:
+                default: {}
+                properties:
+                  enableMirror:
+                    type: boolean
+                  mirrorInterface:
+                    default: mirror0
+                    type: string
+                type: object
+              disableModulesManagement:
+                type: boolean
+              dpdk:
+                type: boolean
+              dpdkCPU:
+                anyOf:
+                - type: integer
+                - type: string
+                default: 1000m
+                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                x-kubernetes-int-or-string: true
+              dpdkMemory:
+                anyOf:
+                - type: integer
+                - type: string
+                default: 2Gi
+                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                x-kubernetes-int-or-string: true
+              dpdkVersion:
+                default: "19.11"
+                type: string
+              dualStackSpec:
+                default:
+                  joinCIDR: 100.64.0.0/16,fd00:100:64::/112
+                  pingerExternalAddress: 1.1.1.1,2606:4700:4700::1111
+                  pingerExternalDomain: google.com.
+                  podCIDR: 10.16.0.0/16,fd00:10:16::/112
+                  podGateway: 10.16.0.1,fd00:10:16::1
+                  svcCIDR: 10.96.0.0/12,fd00:10:96::/112
+                properties:
+                  joinCIDR:
+                    default: fd00:100:64::/112
+                    type: string
+                  pingerExternalAddress:
+                    default: 2606:4700:4700::1111
+                    type: string
+                  pingerExternalDomain:
+                    default: google.com.
+                    type: string
+                  podCIDR:
+                    default: fd00:10:16::/112
+                    type: string
+                  podGateway:
+                    default: fd00:10:16::1
+                    type: string
+                  serviceCIDR:
+                    default: fd00:10:96::/112
+                    type: string
+                type: object
+              global:
+                properties:
+                  registry:
+                    properties:
+                      address:
+                        default: docker.io/kubeovn
+                        type: string
+                      imagePullSecrets:
+                        items:
+                          type: string
+                        type: array
+                      images:
+                        properties:
+                          dpdkRepository:
+                            default: kube-ovn-dpdk
+                            type: string
+                          repository:
+                            default: kube-ovn
+                            type: string
+                          supportArm:
+                            default: true
+                            type: boolean
+                          tag:
+                            type: string
+                          thirdParty:
+                            default: true
+                            type: boolean
+                          vpcRepository:
+                            default: vpc-nat-gateway
+                            type: string
+                        type: object
+                    type: object
+                type: object
+              hugePages:
+                anyOf:
+                - type: integer
+                - type: string
+                default: 1Gi
+                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                x-kubernetes-int-or-string: true
+              hugepageSizeType:
+                default: hugepages-2Mi
+                type: string
+              hybridDPDK:
+                type: boolean
+              imagePullPolicy:
+                default: IfNotPresent
+                type: string
+              ipv4:
+                default:
+                  joinCIDR: 100.64.0.0/16
+                  pingerExternalAddress: 1.1.1.1
+                  pingerExternalDomain: google.com.
+                  podCIDR: 10.16.0.0/16
+                  podGateway: 10.16.0.1
+                  svcCIDR: 10.96.0.0/12
+                properties:
+                  joinCIDR:
+                    default: fd00:100:64::/112
+                    type: string
+                  pingerExternalAddress:
+                    default: 2606:4700:4700::1111
+                    type: string
+                  pingerExternalDomain:
+                    default: google.com.
+                    type: string
+                  podCIDR:
+                    default: fd00:10:16::/112
+                    type: string
+                  podGateway:
+                    default: fd00:10:16::1
+                    type: string
+                  serviceCIDR:
+                    default: fd00:10:96::/112
+                    type: string
+                type: object
+              ipv6:
+                default:
+                  joinCIDR: fd00:100:64::/112
+                  pingerExternalAddress: 2606:4700:4700::1111
+                  pingerExternalDomain: google.com.
+                  podCIDR: fd00:10:16::/112
+                  podGateway: fd00:10:16::1
+                  svcCIDR: fd00:10:96::/112
+                properties:
+                  joinCIDR:
+                    default: fd00:100:64::/112
+                    type: string
+                  pingerExternalAddress:
+                    default: 2606:4700:4700::1111
+                    type: string
+                  pingerExternalDomain:
+                    default: google.com.
+                    type: string
+                  podCIDR:
+                    default: fd00:10:16::/112
+                    type: string
+                  podGateway:
+                    default: fd00:10:16::1
+                    type: string
+                  serviceCIDR:
+                    default: fd00:10:96::/112
+                    type: string
+                type: object
+              kubeOVNCNI:
+                default:
+                  limits:
+                    cpu: "1"
+                    memory: 1000Mi
+                  requests:
+                    cpu: 100m
+                    memory: 100Mi
+                properties:
+                  limits:
+                    properties:
+                      cpu:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      memory:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                    type: object
+                  requests:
+                    properties:
+                      cpu:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      memory:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                    type: object
+                type: object
+              kubeOVNController:
+                default:
+                  limits:
+                    cpu: "1"
+                    memory: 1000Mi
+                  requests:
+                    cpu: 200m
+                    memory: 200Mi
+                properties:
+                  limits:
+                    properties:
+                      cpu:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      memory:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                    type: object
+                  requests:
+                    properties:
+                      cpu:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      memory:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                    type: object
+                type: object
+              kubeOVNMonitor:
+                default:
+                  limits:
+                    cpu: 200m
+                    memory: 200Mi
+                  requests:
+                    cpu: 200m
+                    memory: 200Mi
+                properties:
+                  limits:
+                    properties:
+                      cpu:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      memory:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                    type: object
+                  requests:
+                    properties:
+                      cpu:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      memory:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                    type: object
+                type: object
+              kubeOVNPinger:
+                default:
+                  limits:
+                    cpu: 200m
+                    memory: 400Mi
+                  requests:
+                    cpu: 100m
+                    memory: 100Mi
+                properties:
+                  limits:
+                    properties:
+                      cpu:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      memory:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                    type: object
+                  requests:
+                    properties:
+                      cpu:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      memory:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                    type: object
+                type: object
+              kubeletConfig:
+                default: {}
+                properties:
+                  kubeletDir:
+                    default: /var/lib/kubelet
+                    type: string
+                type: object
+              logConfig:
+                default: {}
+                properties:
+                  logDir:
+                    default: /var/log
+                    type: string
+                type: object
+              masterNodesLabel:
+                default: kube-ovn/role=master
+                type: string
+              namespace:
+                default: kube-system
+                type: string
+              networking:
+                default: {}
+                properties:
+                  defaultSubnet:
+                    default: ovn-default
+                    type: string
+                  defaultVPC:
+                    default: ovn-cluster
+                    type: string
+                  dpdkTunnelInterface:
+                    type: string
+                  enableCompact:
+                    type: boolean
+                  enableEIPSNAT:
+                    default: true
+                    type: boolean
+                  enableSSL:
+                    type: boolean
+                  exchangeLinkName:
+                    type: boolean
+                  excludeIPS:
+                    type: string
+                  interface:
+                    type: string
+                  netStack:
+                    default: ipv4
+                    enum:
+                    - ipv4
+                    - ipv6
+                    - dual_stack
+                    type: string
+                  networkType:
+                    default: geneve
+                    enum:
+                    - geneve
+                    - vxlan
+                    type: string
+                  nodeLocalDNSIPS:
+                    type: string
+                  nodeSubnet:
+                    default: join
+                    type: string
+                  ovenLeaderProbeInterval:
+                    default: 5
+                    minimum: 1
+                    type: integer
+                  ovnNorthdNThreads:
+                    default: 1
+                    minimum: 1
+                    type: integer
+                  ovnNorthdProbeInterval:
+                    default: 5000
+                    minimum: 1
+                    type: integer
+                  ovnRemoteOverflowInterval:
+                    default: 10
+                    minimum: 1
+                    type: integer
+                  ovnRemoteProbeInterval:
+                    default: 10000
+                    minimum: 1
+                    type: integer
+                  podNicType:
+                    default: veth-pair
+                    type: string
+                  probeInterval:
+                    default: 180000
+                    minimum: 1
+                    type: integer
+                  tunnelType:
+                    default: geneve
+                    enum:
+                    - geneve
+                    - vxlan
+                    - stt
+                    type: string
+                  vlan:
+                    properties:
+                      providerName:
+                        default: provider
+                        type: string
+                      vlanId:
+                        default: 1
+                        maximum: 4094
+                        minimum: 1
+                        type: integer
+                      vlanInterface:
+                        type: string
+                      vlanName:
+                        default: ovn-vlan
+                        type: string
+                    required:
+                    - vlanId
+                    type: object
+                type: object
+              openVSwitchDir:
+                default: /etc/origin/openvswitch
+                type: string
+              ovnCentral:
+                default:
+                  limits:
+                    cpu: "3"
+                    memory: 4Gi
+                  requests:
+                    cpu: 300m
+                    memory: 200Mi
+                properties:
+                  limits:
+                    properties:
+                      cpu:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      memory:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                    type: object
+                  requests:
+                    properties:
+                      cpu:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      memory:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                    type: object
+                type: object
+              ovnDir:
+                default: /etc/origin/ovn
+                type: string
+              ovsOVN:
+                default:
+                  limits:
+                    cpu: "2"
+                    memory: 1000Mi
+                  requests:
+                    cpu: 200m
+                    memory: 200Mi
+                properties:
+                  limits:
+                    properties:
+                      cpu:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      memory:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                    type: object
+                  requests:
+                    properties:
+                      cpu:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      memory:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                    type: object
+                type: object
+              performance:
+                default: {}
+                properties:
+                  gcInterval:
+                    default: 360
+                    minimum: 0
+                    type: integer
+                  inspectInterval:
+                    default: 20
+                    minimum: 1
+                    type: integer
+                  ovsVSCtlConcurrency:
+                    default: 100
+                    minimum: 0
+                    type: integer
+                type: object
+            type: object
+          status:
+            description: ConfigurationStatus defines the observed state of Configuration.
+            properties:
+              matchingNodeAddresses:
+                items:
+                  type: string
+                type: array
+              status:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
