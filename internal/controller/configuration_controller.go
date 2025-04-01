@@ -27,15 +27,19 @@ import (
 	kubeovniov1 "github.com/harvester/kubeovn-operator/api/v1"
 )
 
+var (
+	configurationLog = ctrl.Log.WithName("configuration-controller")
+)
+
 // ConfigurationReconciler reconciles a Configuration object
 type ConfigurationReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=kubeovn.io.my.domain,resources=configurations,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=kubeovn.io.my.domain,resources=configurations/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=kubeovn.io.my.domain,resources=configurations/finalizers,verbs=update
+// +kubebuilder:rbac:groups=kubeovn.io,resources=configurations,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=kubeovn.io,resources=configurations/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=kubeovn.io,resources=configurations/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -59,5 +63,6 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubeovniov1.Configuration{}).
 		Named("configuration").
+		//Watches(&corev1.Secret{}, handler.EnqueueRequestsFromMapFunc()).
 		Complete(r)
 }

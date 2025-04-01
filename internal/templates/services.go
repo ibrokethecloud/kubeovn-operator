@@ -1,7 +1,7 @@
 package templates
 
 var (
-	kube_ovn_controller_template = `kind: Service
+	kube_ovn_controller_service = `kind: Service
 apiVersion: v1
 metadata:
   name: kube-ovn-controller
@@ -18,7 +18,7 @@ spec:
   ipFamilyPolicy: PreferDualStack
   {{- end }}`
 
-	kube_ovn_monitor_template = `kind: Service
+	kube_ovn_monitor_service = `kind: Service
 apiVersion: v1
 metadata:
   name: kube-ovn-monitor
@@ -37,7 +37,7 @@ spec:
   ipFamilyPolicy: PreferDualStack
   {{- end }}`
 
-	nb_nb_template = `kind: Service
+	ovn_nb_service = `kind: Service
 apiVersion: v1
 metadata:
   name: ovn-nb
@@ -57,7 +57,7 @@ spec:
     ovn-nb-leader: "true"
   sessionAffinity: None`
 
-	ovn_northd_template = `kind: Service
+	ovn_northd_service = `kind: Service
 apiVersion: v1
 metadata:
   name: ovn-northd
@@ -77,7 +77,7 @@ spec:
     ovn-northd-leader: "true"
   sessionAffinity: None`
 
-	kube_ovn_cni_template = `
+	kube_ovn_cni_service = `
 kind: Service
 apiVersion: v1
 metadata:
@@ -95,7 +95,7 @@ spec:
   ipFamilyPolicy: PreferDualStack
   {{- end }}`
 
-	kube_ovn_pinger_template = `kind: Service
+	kube_ovn_pinger_service = `kind: Service
 apiVersion: v1
 metadata:
   name: kube-ovn-pinger
@@ -112,7 +112,7 @@ spec:
   ipFamilyPolicy: PreferDualStack
   {{- end }}`
 
-	ovn_sb_template = `kind: Service
+	ovn_sb_service = `kind: Service
 apiVersion: v1
 metadata:
   name: ovn-sb
@@ -131,4 +131,6 @@ spec:
     app: ovn-central
     ovn-sb-leader: "true"
   sessionAffinity: None`
+
+	ServicesList = []string{kube_ovn_controller_service, kube_ovn_monitor_service, ovn_nb_service, ovn_northd_service, kube_ovn_cni_service, kube_ovn_pinger_service}
 )

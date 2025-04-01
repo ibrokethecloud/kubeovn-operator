@@ -19,6 +19,7 @@ package v1
 import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -37,11 +38,11 @@ type ConfigurationSpec struct {
 	Networking NetworkingSpec `json:"networking,omitempty"`
 	// +kubebuilder:default:={}
 	Component ComponentSpec `json:"components,omitempty"`
-	// +kubebuilder:default:={podCIDR:"10.16.0.0/16",podGateway:"10.16.0.1", svcCIDR:"10.96.0.0/12",joinCIDR:"100.64.0.0/16",pingerExternalAddress:"1.1.1.1",pingerExternalDomain:"google.com."}
+	// +kubebuilder:default:={podCIDR:"10.16.0.0/16",podGateway:"10.16.0.1", serviceCIDR:"10.96.0.0/12",joinCIDR:"100.64.0.0/16",pingerExternalAddress:"1.1.1.1",pingerExternalDomain:"google.com."}
 	IPv4 NetworkStackSpec `json:"ipv4,omitempty"`
-	// +kubebuilder:default:={podCIDR:"fd00:10:16::/112",podGateway:"fd00:10:16::1", svcCIDR:"fd00:10:96::/112",joinCIDR:"fd00:100:64::/112",pingerExternalAddress:"2606:4700:4700::1111",pingerExternalDomain:"google.com."}
+	// +kubebuilder:default:={podCIDR:"fd00:10:16::/112",podGateway:"fd00:10:16::1", serviceCIDR:"fd00:10:96::/112",joinCIDR:"fd00:100:64::/112",pingerExternalAddress:"2606:4700:4700::1111",pingerExternalDomain:"google.com."}
 	IPv6 NetworkStackSpec `json:"ipv6,omitempty"`
-	// +kubebuilder:default:={podCIDR:"10.16.0.0/16,fd00:10:16::/112",podGateway:"10.16.0.1,fd00:10:16::1", svcCIDR:"10.96.0.0/12,fd00:10:96::/112",joinCIDR:"100.64.0.0/16,fd00:100:64::/112",pingerExternalAddress:"1.1.1.1,2606:4700:4700::1111",pingerExternalDomain:"google.com."}
+	// +kubebuilder:default:={podCIDR:"10.16.0.0/16,fd00:10:16::/112",podGateway:"10.16.0.1,fd00:10:16::1", serviceCIDR:"10.96.0.0/12,fd00:10:96::/112",joinCIDR:"100.64.0.0/16,fd00:100:64::/112",pingerExternalAddress:"1.1.1.1,2606:4700:4700::1111",pingerExternalDomain:"google.com."}
 	DualStackSpec NetworkStackSpec `json:"dualStackSpec,omitempty"`
 	// +kubebuilder:default:={}
 	Performance PerformanceSpec `json:"performance,omitempty"`
@@ -124,7 +125,8 @@ type NetworkingSpec struct {
 	DpdkTunnelInterface string `json:"dpdkTunnelInterface,omitempty"`
 	ExcludeIPS          string `json:"excludeIPS,omitempty"`
 	// +kubebuilder:default:="veth-pair"
-	PodNicType       string   `json:"podNicType,omitempty"`
+	PodNicType string `json:"podNicType,omitempty"`
+	// +kubebuilder:default:={}
 	Vlan             VlanSpec `json:"vlan,omitempty"`
 	ExchangeLinkName bool     `json:"exchangeLinkName,omitempty"`
 	// +kubebuilder:default:=true
@@ -144,7 +146,7 @@ type NetworkingSpec struct {
 	OvnNorthdProbeInterval int `json:"ovnNorthdProbeInterval,omitempty"`
 	// +kubebuilder:default:=5
 	// +kubebuilder:validation:Minimum=1
-	OvenLeaderProbeInterval int `json:"ovenLeaderProbeInterval,omitempty"`
+	OvnLeaderProbeInterval int `json:"ovnLeaderProbeInterval,omitempty"`
 	// +kubebuilder:default:=10000
 	// +kubebuilder:validation:Minimum=1
 	OvnRemoteProbeInterval int `json:"ovnRemoteProbeInterval,omitempty"`
@@ -166,7 +168,7 @@ type VlanSpec struct {
 	// +kubebuilder:default:=1
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=4094
-	VlanID int `json:"vlanId"`
+	VlanID int `json:"vlanId,omitempty"`
 }
 
 type ComponentSpec struct {
@@ -276,8 +278,9 @@ type CPUMemSpec struct {
 
 // ConfigurationStatus defines the observed state of Configuration.
 type ConfigurationStatus struct {
-	MatchingNodeAddresses []string `json:"matchingNodeAddresses,omitempty"`
-	Status                string   `json:"status,omitempty"`
+	MatchingNodeAddresses []string           `json:"matchingNodeAddresses,omitempty"`
+	Conditions            []metav1.Condition `json:"conditions,omitempty"`
+	Status                string             `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -304,3 +307,14 @@ type ConfigurationList struct {
 func init() {
 	SchemeBuilder.Register(&Configuration{}, &ConfigurationList{})
 }
+
+const (
+	ConfigurationReconcileNeededCondition = "ReconcileNeeded"
+	ConfiguredReconciledCondition         = "ConfiguredReconciled"
+	DefaultConfigurationName              = "kubeovn"
+	DefaultConfigurationNamespace         = "kube-system"
+)
+
+var (
+	TypedConfiguration = types.NamespacedName{Name: DefaultConfigurationName, Namespace: DefaultConfigurationNamespace}
+)
