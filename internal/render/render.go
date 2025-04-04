@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"text/template"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -24,6 +25,13 @@ func GenerateObjects(templates []string, config *ovnoperatorv1.Configuration, ob
 	valsObj, err := generateMap(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate values: %w", err)
+	}
+	ns := map[string]string{
+		"namespace": config.GetNamespace(),
+	}
+	err = unstructured.SetNestedStringMap(valsObj, ns, "Values")
+	if err != nil {
+		return nil, fmt.Errorf("failed to set namespace field in values map: %v", err)
 	}
 	for _, sourceTemplate := range templates {
 		returnedObject, err := generateObject(sourceTemplate, valsObj, object)

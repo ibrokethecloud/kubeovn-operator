@@ -22,9 +22,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"go.uber.org/zap/zapcore"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
+
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -64,6 +68,8 @@ func main() {
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var tlsOpts []func(*tls.Config)
+	var namespace string
+	var debug bool
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -81,11 +87,21 @@ func main() {
 	flag.StringVar(&metricsCertKey, "metrics-cert-key", "tls.key", "The name of the metrics server key file.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
+	flag.StringVar(&namespace, "namespace", "", "The namespace passed via downward API to identify where to deploy and watch generated resources")
+	flag.BoolVar(&debug, "debug", false, "Enable debug logging")
+
 	opts := zap.Options{
-		Development: true,
+		Level: zapcore.ErrorLevel,
 	}
+
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
+
+	// enable debug logging if needed
+	if debug {
+		opts.Development = true
+		opts.Level = zapcore.DebugLevel
+	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
@@ -196,19 +212,41 @@ func main() {
 		// if you are doing or is intended to do any operation such as perform cleanups
 		// after the manager stops then its usage might be unsafe.
 		// LeaderElectionReleaseOnCancel: true,
+		// limit the controller to only watch and manage objects it is deployed to
+		Cache: cache.Options{
+			DefaultNamespaces: map[string]cache.Config{
+				namespace: cache.Config{},
+			},
+		},
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
+	ctx := ctrl.SetupSignalHandler()
+
 	if err = (&controller.ConfigurationReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		Namespace:     namespace,
+		EventRecorder: mgr.GetEventRecorderFor("configuration-controller"),
+		Log:           logf.FromContext(ctx),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Configuration")
 		os.Exit(1)
 	}
+
+	if err = (&controller.NodeReconciler{
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		Namespace:     namespace,
+		EventRecorder: mgr.GetEventRecorderFor("node-controller"),
+		Log:           logf.FromContext(ctx),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Node")
+	}
+
 	// +kubebuilder:scaffold:builder
 
 	if metricsCertWatcher != nil {
@@ -237,7 +275,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}

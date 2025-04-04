@@ -461,9 +461,6 @@ spec:
               masterNodesLabel:
                 default: kube-ovn/role=master
                 type: string
-              namespace:
-                default: kube-system
-                type: string
               networking:
                 default: {}
                 properties:

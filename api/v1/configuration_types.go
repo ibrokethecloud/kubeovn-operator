@@ -17,9 +17,11 @@ limitations under the License.
 package v1
 
 import (
+	"fmt"
+
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -30,8 +32,6 @@ type ConfigurationSpec struct {
 	Global GlobalSpec `json:"global,omitempty"`
 	// +kubebuilder:default:="IfNotPresent"
 	ImagePullPolicy string `json:"imagePullPolicy,omitempty"`
-	// +kubebuilder:default:="kube-system"
-	Namespace string `json:"namespace,omitempty"`
 	// +kubebuilder:default:="kube-ovn/role=master"
 	MasterNodesLabel string `json:"masterNodesLabel,omitempty"`
 	// +kubebuilder:default:={}
@@ -281,6 +281,12 @@ type ConfigurationStatus struct {
 	MatchingNodeAddresses []string           `json:"matchingNodeAddresses,omitempty"`
 	Conditions            []metav1.Condition `json:"conditions,omitempty"`
 	Status                string             `json:"status,omitempty"`
+	ManagedObjects        []ObjectReference  `json:"managedObjects,omitempty"`
+}
+
+type ObjectReference struct {
+	GVK  schema.GroupVersionKind `json:"gvk,omitempty"`
+	Name string                  `json:"name,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -309,12 +315,14 @@ func init() {
 }
 
 const (
-	ConfigurationReconcileNeededCondition = "ReconcileNeeded"
-	ConfiguredReconciledCondition         = "ConfiguredReconciled"
-	DefaultConfigurationName              = "kubeovn"
-	DefaultConfigurationNamespace         = "kube-system"
+	// ConfigurationStatusDeploying indicates that changes are being deployed to the stack
+	ConfigurationStatusDeploying = "Deploying"
+	// ConfigurationStatusDeployed indicates that changes have been deployed
+	ConfigurationStatusDeployed = "Deployed"
+	DefaultConfigurationName    = "kubeovn"
 )
 
 var (
-	TypedConfiguration = types.NamespacedName{Name: DefaultConfigurationName, Namespace: DefaultConfigurationNamespace}
+	APIVersion = fmt.Sprintf("%s/%s", GroupVersion.Group, GroupVersion.Version)
+	Kind       = fmt.Sprintf("Configuration")
 )

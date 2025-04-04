@@ -3,30 +3,31 @@ package controller
 import (
 	"context"
 
-	kubeovniov1 "github.com/harvester/kubeovn-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	"github.com/go-logr/logr"
+	kubeovniov1 "github.com/harvester/kubeovn-operator/api/v1"
 )
 
 const (
 	KubeOVNNodeFinalizer = "nodes.kubeovn.io"
 )
 
-var (
-	nodeLog = ctrl.Log.WithName("node-controller")
-)
-
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch;create;update;patch;delete
 type NodeReconciler struct {
 	client.Client
-	Scheme   *runtime.Scheme
-	recorder record.EventRecorder
+	Scheme        *runtime.Scheme
+	EventRecorder record.EventRecorder
+	Namespace     string
+	Log           logr.Logger
 }
 
 func (r *NodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -41,24 +42,24 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	err := r.Get(ctx, req.NamespacedName, nodeObj)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			nodeLog.WithValues("name", req.Name).Info("node not found")
+			r.Log.WithValues("name", req.Name).Info("node not found")
 			return ctrl.Result{}, nil
 		}
 	}
 
 	node := nodeObj.DeepCopy()
 	// fetch configuration object and identify matching nodes
-	config, err := fetchKubeovnConfig(ctx, r.Client)
+	config, err := fetchKubeovnConfig(ctx, r.Client, r.Namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			nodeLog.Info("waiting for kubeovn configuration to be created, nothing to do: %v", err)
+			r.Log.Info("waiting for kubeovn configuration to be created, nothing to do: %v", err)
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
 	}
 
 	if !metav1.HasLabel(node.ObjectMeta, config.Spec.MasterNodesLabel) {
-		nodeLog.WithValues("name", req.Name).Info("node does not match config masterNodesLabel, so ignoring")
+		r.Log.WithValues("name", req.Name).Info("node does not match config masterNodesLabel, so ignoring")
 		return ctrl.Result{}, nil
 	}
 
@@ -77,9 +78,9 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 }
 
 // fetchKubeovnConfig fetches the default configuration
-func fetchKubeovnConfig(ctx context.Context, client client.Client) (*kubeovniov1.Configuration, error) {
+func fetchKubeovnConfig(ctx context.Context, client client.Client, namespace string) (*kubeovniov1.Configuration, error) {
 	config := &kubeovniov1.Configuration{}
-	err := client.Get(ctx, kubeovniov1.TypedConfiguration, config)
+	err := client.Get(ctx, types.NamespacedName{Name: kubeovniov1.DefaultConfigurationName, Namespace: namespace}, config)
 	return config, err
 }
 

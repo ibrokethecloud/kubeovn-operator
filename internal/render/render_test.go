@@ -24,7 +24,6 @@ var config = &ovnoperatorv1.Configuration{
 				ImagePullSecrets: []string{"registry-one-secret", "registry-two-secret"},
 			},
 		},
-		Namespace: "kube-system",
 	},
 }
 
