@@ -218,3 +218,14 @@ func (r *ConfigurationReconciler) findMasterNodes(ctx context.Context, config *k
 	config.Status.MatchingNodeAddresses = nodeAddresses
 	return r.Status().Update(ctx, config)
 }
+
+// initializeConditions will initialise baseline conditions for the configuration object
+func (r *ConfigurationReconciler) initializeConditions(ctx context.Context, config *kubeovniov1.Configuration) error {
+	if len(config.Status.Conditions) != 2 {
+		return nil
+	}
+	configObj := config.DeepCopy()
+	config.SetCondition(kubeovniov1.ErroredObjectsCondition, metav1.ConditionUnknown, "", "")
+	config.SetCondition(kubeovniov1.WaitingForMatchignNodesCondition, metav1.ConditionTrue, "", "")
+	return r.Status().Patch(ctx, config, client.MergeFrom(configObj))
+}

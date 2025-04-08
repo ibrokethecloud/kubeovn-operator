@@ -318,11 +318,59 @@ const (
 	// ConfigurationStatusDeploying indicates that changes are being deployed to the stack
 	ConfigurationStatusDeploying = "Deploying"
 	// ConfigurationStatusDeployed indicates that changes have been deployed
-	ConfigurationStatusDeployed = "Deployed"
-	DefaultConfigurationName    = "kubeovn"
+	ConfigurationStatusDeployed      = "Deployed"
+	DefaultConfigurationName         = "kubeovn"
+	WaitingForMatchignNodesCondition = "waitingForMatchignNodes"
+	ErroredObjectsCondition          = "erroredObjects"
 )
 
 var (
 	APIVersion = fmt.Sprintf("%s/%s", GroupVersion.Group, GroupVersion.Version)
 	Kind       = fmt.Sprintf("Configuration")
 )
+
+// SetCondition updates or adds a new condition to the object
+func (c *Configuration) SetCondition(conditionType string, conditionStatus metav1.ConditionStatus, message string, reason string) {
+	for i := range c.Status.Conditions {
+		if c.Status.Conditions[i].Type == conditionType {
+			c.Status.Conditions[i].Status = conditionStatus
+			c.Status.Conditions[i].Message = message
+			c.Status.Conditions[i].Reason = reason
+			c.Status.Conditions[i].LastTransitionTime = metav1.Now()
+			c.Status.Conditions[i].ObservedGeneration = c.ObjectMeta.Generation
+			return
+		}
+	}
+	c.Status.Conditions = append(c.Status.Conditions, metav1.Condition{
+		Type:               conditionType,
+		Status:             conditionStatus,
+		LastTransitionTime: metav1.Now(),
+		Reason:             reason,
+		Message:            message,
+		ObservedGeneration: c.ObjectMeta.Generation,
+	})
+}
+
+func (c *Configuration) ConditionTrue(conditionType string) bool {
+	condition := c.lookupCondition(conditionType)
+	return condition.Status == metav1.ConditionTrue
+}
+
+func (c *Configuration) ConditionFalse(conditionType string) bool {
+	condition := c.lookupCondition(conditionType)
+	return condition.Status == metav1.ConditionFalse
+}
+
+func (c *Configuration) ConditionUnknown(conditionType string) bool {
+	condition := c.lookupCondition(conditionType)
+	return condition.Status == metav1.ConditionUnknown
+}
+
+func (c *Configuration) lookupCondition(conditionType string) metav1.Condition {
+	for _, v := range c.Status.Conditions {
+		if v.Type == conditionType {
+			return v
+		}
+	}
+	return metav1.Condition{}
+}
