@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 
 	"go.uber.org/zap/zapcore"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -56,6 +57,7 @@ func init() {
 
 	utilruntime.Must(kubeovniov1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
+	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 }
 
 // nolint:gocyclo

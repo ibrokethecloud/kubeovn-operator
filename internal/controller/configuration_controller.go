@@ -21,7 +21,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -56,7 +56,7 @@ type reconcileFuncs func(context.Context, *kubeovniov1.Configuration) error
 
 // orderedObjectList iterates templated object lists and applies them in order
 var orderedObjectList = map[client.Object][]string{
-	&apiextensions.CustomResourceDefinition{}: templates.CRDList,
+	&apiextensionsv1.CustomResourceDefinition{}: templates.CRDList,
 	&corev1.Secret{}:             templates.SecretList,
 	&corev1.ServiceAccount{}:     templates.ServiceAccountList,
 	&rbacv1.RoleBinding{}:        templates.RoleBindingList,
@@ -99,7 +99,7 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return reconcile.Result{}, nil
 	}
 
-	reconcileSteps := []reconcileFuncs{r.findMasterNodes, r.checkObjects, r.applyObject}
+	reconcileSteps := []reconcileFuncs{r.initializeConditions, r.findMasterNodes, r.checkObjects, r.applyObject}
 
 	for _, v := range reconcileSteps {
 		if err := v(ctx, config); err != nil {

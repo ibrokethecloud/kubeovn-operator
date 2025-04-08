@@ -18,67 +18,99 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	kubeovniov1 "github.com/harvester/kubeovn-operator/api/v1"
 )
 
+var (
+	config = &kubeovniov1.Configuration{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      kubeovniov1.DefaultConfigurationName,
+			Namespace: defaultKubeovnNamespace,
+		},
+		Spec: kubeovniov1.ConfigurationSpec{
+			MasterNodesLabel: "node-role.kubernetes.io/control-plane=true",
+			Networking: kubeovniov1.NetworkingSpec{
+				NetStack:    "ipv4",
+				NetworkType: "geneve",
+				TunnelType:  "vxlan",
+			},
+			IPv4: kubeovniov1.NetworkStackSpec{
+				PodCIDR:               "10.42.0.0/16",
+				ServiceCIDR:           "10.43.0.0/16",
+				PodGateway:            "10.42.0.1",
+				JoinCIDR:              "100.64.0.0/16",
+				PingerExternalAddress: "1.1.1.1",
+				PingerExternalDomain:  "google.com.",
+			},
+		},
+	}
+
+	typedConfig = types.NamespacedName{Name: config.Name, Namespace: config.Namespace}
+)
 var _ = Describe("Configuration Controller", func() {
 	Context("When reconciling a resource", func() {
 		const resourceName = "test-resource"
 
 		ctx := context.Background()
-
-		typeNamespacedName := types.NamespacedName{
-			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
-		}
 		configuration := &kubeovniov1.Configuration{}
 
 		BeforeEach(func() {
 			By("creating the custom resource for the Kind Configuration")
-			err := k8sClient.Get(ctx, typeNamespacedName, configuration)
+			err := k8sClient.Get(ctx, typedConfig, configuration)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &kubeovniov1.Configuration{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: "default",
-					},
-					// TODO(user): Specify other spec details if needed.
-				}
-				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+				Expect(k8sClient.Create(ctx, config)).To(Succeed())
 			}
 		})
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
 			resource := &kubeovniov1.Configuration{}
-			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			err := k8sClient.Get(ctx, typedConfig, resource)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Cleanup the specific resource instance Configuration")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
-		It("should successfully reconcile the resource", func() {
-			By("Reconciling the created resource")
-			controllerReconciler := &ConfigurationReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
 
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
+		It("reconcile configuration object", func() {
+
+			By("checking baseline conditions have been set", func() {
+				Eventually(func() error {
+					resource := &kubeovniov1.Configuration{}
+					err := k8sClient.Get(ctx, typedConfig, resource)
+					if err != nil {
+						return err
+					}
+					testSuiteLogger.WithValues("current status", resource.Status).Info("current status")
+					if len(resource.Status.Conditions) != 2 {
+						return fmt.Errorf("expected to find 2 baseline conditions")
+					}
+					return nil
+				}, "30s", "5s").Should(BeNil())
 			})
-			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
+
+			By("checking master nodes have been discovered from status", func() {
+				Eventually(func() error {
+					resource := &kubeovniov1.Configuration{}
+					err := k8sClient.Get(ctx, typedConfig, resource)
+					if err != nil {
+						return err
+					}
+					testSuiteLogger.WithValues("current status", resource.Status).Info("current status")
+					if len(resource.Status.MatchingNodeAddresses) == 0 {
+						return fmt.Errorf("expected to find at least one master node")
+					}
+					return nil
+				}, "30s", "5s").Should(BeNil())
+			})
 		})
 	})
 })

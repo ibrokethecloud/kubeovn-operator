@@ -21,18 +21,24 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
-	"k8s.io/client-go/kubernetes/scheme"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	kubeovniov1 "github.com/harvester/kubeovn-operator/api/v1"
+	"github.com/harvester/kubeovn-operator/internal/testinfra"
+
 	// +kubebuilder:scaffold:imports
 )
 
@@ -40,11 +46,18 @@ import (
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
 var (
-	ctx       context.Context
-	cancel    context.CancelFunc
-	testEnv   *envtest.Environment
-	cfg       *rest.Config
-	k8sClient client.Client
+	ctx               context.Context
+	cancel            context.CancelFunc
+	cluster           testinfra.TestCluster
+	cfg               *rest.Config
+	k8sClient         client.Client
+	crdInstallOptions envtest.CRDInstallOptions
+	scheme            = runtime.NewScheme()
+	testSuiteLogger   = ctrl.Log.WithName("test suite")
+)
+
+const (
+	defaultKubeovnNamespace = "kube-system"
 )
 
 func TestControllers(t *testing.T) {
@@ -58,37 +71,85 @@ var _ = BeforeSuite(func() {
 
 	ctx, cancel = context.WithCancel(context.TODO())
 
+	cluster = testinfra.NewTestCluster()
 	var err error
-	err = kubeovniov1.AddToScheme(scheme.Scheme)
+	By("registering various schemas")
+	err = clientgoscheme.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
-
-	// +kubebuilder:scaffold:scheme
+	err = kubeovniov1.AddToScheme(scheme)
+	Expect(err).NotTo(HaveOccurred())
+	err = apiextensionsv1.AddToScheme(scheme)
+	Expect(err).NotTo(HaveOccurred())
 
 	By("bootstrapping test environment")
-	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
-		ErrorIfCRDPathMissing: true,
-	}
-
-	// Retrieve the first found binary directory to allow running tests from IDEs
-	if getFirstFoundEnvTestBinaryDir() != "" {
-		testEnv.BinaryAssetsDirectory = getFirstFoundEnvTestBinaryDir()
-	}
-
-	// cfg is defined in this file globally.
-	cfg, err = testEnv.Start()
+	err = cluster.CreateCluster(ctx)
 	Expect(err).NotTo(HaveOccurred())
-	Expect(cfg).NotTo(BeNil())
 
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
+	cfg, err = cluster.GetKubeConfig(ctx)
+	Expect(err).NotTo(HaveOccurred())
+
+	By("installing CRDs")
+	crdInstallOptions = envtest.CRDInstallOptions{
+		Scheme:             scheme,
+		Paths:              []string{filepath.Join("..", "..", "config", "crd", "bases")},
+		ErrorIfPathMissing: true,
+	}
+	_, err = envtest.InstallCRDs(cfg, crdInstallOptions)
+	Expect(err).NotTo(HaveOccurred())
+	// +kubebuilder:scaffold:scheme
+
+	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
+
+	// setup manager for reconcilling objects
+	opts := zap.Options{
+		Development: true,
+	}
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+		Scheme: scheme,
+		Cache: cache.Options{
+			DefaultNamespaces: map[string]cache.Config{
+				defaultKubeovnNamespace: cache.Config{},
+			},
+		},
+	})
+
+	err = (&ConfigurationReconciler{
+		Client:        mgr.GetClient(),
+		Scheme:        scheme,
+		Namespace:     defaultKubeovnNamespace,
+		EventRecorder: mgr.GetEventRecorderFor("configuration-controller"),
+		Log:           logf.FromContext(ctx),
+	}).SetupWithManager(mgr)
+	Expect(err).NotTo(HaveOccurred())
+
+	err = (&NodeReconciler{
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		Namespace:     defaultKubeovnNamespace,
+		EventRecorder: mgr.GetEventRecorderFor("node-controller"),
+		Log:           logf.FromContext(ctx),
+	}).SetupWithManager(mgr)
+	Expect(err).NotTo(HaveOccurred())
+
+	testSuiteLogger.Info("starting manager")
+	go func() {
+		defer GinkgoRecover()
+		err = mgr.Start(ctx)
+		Expect(err).NotTo(HaveOccurred())
+	}()
+	time.Sleep(1 * time.Minute)
 })
 
 var _ = AfterSuite(func() {
 	By("tearing down the test environment")
+	err := envtest.UninstallCRDs(cfg, crdInstallOptions)
+	Expect(err).NotTo(HaveOccurred())
 	cancel()
-	err := testEnv.Stop()
+	err = cluster.DeleteCluster(ctx)
 	Expect(err).NotTo(HaveOccurred())
 })
 
@@ -101,7 +162,7 @@ var _ = AfterSuite(func() {
 // setting the 'KUBEBUILDER_ASSETS' environment variable. To ensure the binaries are
 // properly set up, run 'make setup-envtest' beforehand.
 func getFirstFoundEnvTestBinaryDir() string {
-	basePath := filepath.Join("..", "..", "bin", "k8s")
+	basePath := filepath.Join("..", "..", "bin", "k3d")
 	entries, err := os.ReadDir(basePath)
 	if err != nil {
 		logf.Log.Error(err, "Failed to read directory", "path", basePath)

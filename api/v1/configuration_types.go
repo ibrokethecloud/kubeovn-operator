@@ -116,7 +116,7 @@ type NetworkingSpec struct {
 	NetStack  string `json:"netStack,omitempty"`
 	EnableSSL bool   `json:"enableSSL,omitempty"`
 	// +kubebuilder:default:="geneve"
-	// +kubebuilder:validation:Enum=geneve;vxlan
+	// +kubebuilder:validation:Enum=geneve;vlan
 	NetworkType string `json:"networkType,omitempty"`
 	// +kubebuilder:default:="geneve"
 	// +kubebuilder:validation:Enum=geneve;vxlan;stt

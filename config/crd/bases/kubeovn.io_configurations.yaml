@@ -496,7 +496,7 @@ spec:
                     default: geneve
                     enum:
                     - geneve
-                    - vxlan
+                    - vlan
                     type: string
                   nodeLocalDNSIPS:
                     type: string
@@ -715,6 +715,18 @@ spec:
                   - reason
                   - status
                   - type
+                  type: object
+                type: array
+              managedObjects:
+                items:
+                  properties:
+                    gvk:
+                      description: |-
+                        GroupVersionKind unambiguously identifies a kind.  It doesn't anonymously include GroupVersion
+                        to avoid automatic coercion.  It doesn't use a GroupVersion to avoid custom marshalling
+                      type: object
+                    name:
+                      type: string
                   type: object
                 type: array
               matchingNodeAddresses:
