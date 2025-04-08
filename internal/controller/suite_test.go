@@ -21,7 +21,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -38,7 +37,6 @@ import (
 
 	kubeovniov1 "github.com/harvester/kubeovn-operator/api/v1"
 	"github.com/harvester/kubeovn-operator/internal/testinfra"
-
 	// +kubebuilder:scaffold:imports
 )
 
@@ -112,10 +110,11 @@ var _ = BeforeSuite(func() {
 		Scheme: scheme,
 		Cache: cache.Options{
 			DefaultNamespaces: map[string]cache.Config{
-				defaultKubeovnNamespace: cache.Config{},
+				defaultKubeovnNamespace: {},
 			},
 		},
 	})
+	Expect(err).NotTo(HaveOccurred())
 
 	err = (&ConfigurationReconciler{
 		Client:        mgr.GetClient(),
@@ -141,7 +140,7 @@ var _ = BeforeSuite(func() {
 		err = mgr.Start(ctx)
 		Expect(err).NotTo(HaveOccurred())
 	}()
-	time.Sleep(1 * time.Minute)
+	//time.Sleep(1 * time.Minute)
 })
 
 var _ = AfterSuite(func() {

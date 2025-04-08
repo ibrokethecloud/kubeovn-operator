@@ -177,7 +177,7 @@ func (r *ConfigurationReconciler) filterObject(ctx context.Context, obj client.O
 }
 
 func (r *ConfigurationReconciler) AddWatches(b *builder.Builder) *builder.Builder {
-	for key, _ := range orderedObjectList {
+	for key := range orderedObjectList {
 		b.Watches(key, handler.EnqueueRequestsFromMapFunc(r.filterObject))
 	}
 	return b
@@ -221,11 +221,11 @@ func (r *ConfigurationReconciler) findMasterNodes(ctx context.Context, config *k
 
 // initializeConditions will initialise baseline conditions for the configuration object
 func (r *ConfigurationReconciler) initializeConditions(ctx context.Context, config *kubeovniov1.Configuration) error {
-	if len(config.Status.Conditions) != 2 {
+	if len(config.Status.Conditions) == 2 {
 		return nil
 	}
 	configObj := config.DeepCopy()
-	config.SetCondition(kubeovniov1.ErroredObjectsCondition, metav1.ConditionUnknown, "", "")
-	config.SetCondition(kubeovniov1.WaitingForMatchignNodesCondition, metav1.ConditionTrue, "", "")
+	config.SetCondition(kubeovniov1.ErroredObjectsCondition, metav1.ConditionUnknown, "", "Unknown")
+	config.SetCondition(kubeovniov1.WaitingForMatchignNodesCondition, metav1.ConditionTrue, "", "Unknown")
 	return r.Status().Patch(ctx, config, client.MergeFrom(configObj))
 }

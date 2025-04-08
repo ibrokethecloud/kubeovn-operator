@@ -21,7 +21,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -285,8 +284,14 @@ type ConfigurationStatus struct {
 }
 
 type ObjectReference struct {
-	GVK  schema.GroupVersionKind `json:"gvk,omitempty"`
-	Name string                  `json:"name,omitempty"`
+	GVK  GroupVersionKind `json:"gvk,omitempty"`
+	Name string           `json:"name,omitempty"`
+}
+
+type GroupVersionKind struct {
+	Group   string `json:"group"`
+	Version string `json:"version"`
+	Kind    string `json:"kind"`
 }
 
 // +kubebuilder:object:root=true
@@ -326,7 +331,7 @@ const (
 
 var (
 	APIVersion = fmt.Sprintf("%s/%s", GroupVersion.Group, GroupVersion.Version)
-	Kind       = fmt.Sprintf("Configuration")
+	Kind       = "Configuration"
 )
 
 // SetCondition updates or adds a new condition to the object
