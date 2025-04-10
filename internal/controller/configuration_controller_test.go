@@ -57,7 +57,6 @@ var (
 )
 var _ = Describe("Configuration Controller", func() {
 	Context("When reconciling a resource", func() {
-		const resourceName = "test-resource"
 
 		ctx := context.Background()
 		configuration := &kubeovniov1.Configuration{}

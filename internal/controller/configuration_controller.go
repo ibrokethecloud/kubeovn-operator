@@ -19,33 +19,36 @@ package controller
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/go-logr/logr"
+	kubeovniov1 "github.com/harvester/kubeovn-operator/api/v1"
+	"github.com/harvester/kubeovn-operator/internal/render"
+	"github.com/harvester/kubeovn-operator/internal/templates"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
-
-	kubeovniov1 "github.com/harvester/kubeovn-operator/api/v1"
-	"github.com/harvester/kubeovn-operator/internal/render"
-	"github.com/harvester/kubeovn-operator/internal/templates"
 )
 
 // ConfigurationReconciler reconciles a Configuration object
 type ConfigurationReconciler struct {
 	client.Client
+	RestConfig    *rest.Config
 	Scheme        *runtime.Scheme
 	Namespace     string
 	EventRecorder record.EventRecorder
@@ -96,17 +99,21 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	config := configObj.DeepCopy()
 	// if deletiontimestamp is set, then no further processing is needed as we let k8s gc the associated objects
 	if config.DeletionTimestamp != nil {
-		return reconcile.Result{}, nil
+		return reconcile.Result{}, r.deleteClusterScopedReference(ctx)
 	}
 
-	reconcileSteps := []reconcileFuncs{r.initializeConditions, r.findMasterNodes, r.checkObjects, r.applyObject}
+	reconcileSteps := []reconcileFuncs{r.initializeConditions, r.reconcileClusterScopedReference, r.findMasterNodes, r.checkObjects, r.applyObject}
 
 	for _, v := range reconcileSteps {
 		if err := v(ctx, config); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
-	return ctrl.Result{}, nil
+
+	if reflect.DeepEqual(configObj.Status, config.Status) {
+		return ctrl.Result{}, nil
+	}
+	return ctrl.Result{}, r.Client.Status().Patch(ctx, config, client.MergeFrom(configObj))
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -129,22 +136,42 @@ func (r *ConfigurationReconciler) applyObject(ctx context.Context, config *kubeo
 		return nil
 	}
 
+	fakeNSObj := &corev1.Namespace{}
+	err := r.Client.Get(ctx, types.NamespacedName{Name: kubeovniov1.KubeOVNFakeNamespace}, fakeNSObj)
+	if err != nil {
+		return fmt.Errorf("error looking up fake namespaced object: %v", err)
+	}
+
 	for objectType, objectList := range orderedObjectList {
-		objs, err := render.GenerateObjects(objectList, config, objectType)
+		r.Log.WithValues("objectType", objectType.GetObjectKind().GroupVersionKind()).Info("processing object type")
+		// chceck if objectType is a clusterscoped object so we can defined correct ownership
+		namespaced, err := apiutil.IsObjectNamespaced(objectType, r.Scheme, r.Client.RESTMapper())
+		if err != nil {
+			return fmt.Errorf("unable to identify if objecttype %s is namedspaced: %v", objectType.GetObjectKind(), err)
+		}
+		objs, err := render.GenerateObjects(objectList, config, objectType, r.RestConfig)
 		if err != nil {
 			return fmt.Errorf("error during object generation for type %s: %v", objectType.GetObjectKind().GroupVersionKind(), err)
 		}
 		for _, obj := range objs {
-			if err := controllerutil.SetControllerReference(config, obj, r.Scheme); err != nil {
+			var ownerObj client.Object
+			if namespaced {
+				ownerObj = config
+			} else {
+				ownerObj = fakeNSObj
+			}
+			err = controllerutil.SetControllerReference(ownerObj, obj, r.Scheme)
+			if err != nil {
 				return fmt.Errorf("error setting controller reference on object %s/%s: %v", obj.GetNamespace(), obj.GetName(), err)
 			}
+
 			if err = r.reconcileObject(ctx, obj); err != nil {
 				return fmt.Errorf("error reconcilling object %s/%s: %v", obj.GetNamespace(), obj.GetName(), err)
 			}
 		}
 	}
 	config.Status.Status = kubeovniov1.ConfigurationStatusDeployed
-	return r.Status().Update(ctx, config)
+	return nil
 }
 
 // reconcileObject will create / update the managed objects
@@ -190,19 +217,23 @@ func (r *ConfigurationReconciler) checkObjects(ctx context.Context, config *kube
 
 // findMasterNodes will find nodes matching the master label criteria in the configuration
 func (r *ConfigurationReconciler) findMasterNodes(ctx context.Context, config *kubeovniov1.Configuration) error {
+
+	set, err := labels.ConvertSelectorToLabelsMap(config.Spec.MasterNodesLabel)
+	if err != nil {
+		return fmt.Errorf("error parsing label selector %s: %v", config.Spec.MasterNodesLabel, true)
+	}
 	nodeList := &corev1.NodeList{}
-	err := r.List(ctx, nodeList)
+
+	err = r.List(ctx, nodeList, client.MatchingLabels(set))
 	if err != nil {
 		return fmt.Errorf("error listing nodes :%v", err)
 	}
 
 	var nodeAddresses []string
 	for _, v := range nodeList.Items {
-		if metav1.HasLabel(v.ObjectMeta, config.Spec.MasterNodesLabel) {
-			for _, address := range v.Status.Addresses {
-				if address.Type == corev1.NodeInternalIP {
-					nodeAddresses = append(nodeAddresses, address.Address)
-				}
+		for _, address := range v.Status.Addresses {
+			if address.Type == corev1.NodeInternalIP {
+				nodeAddresses = append(nodeAddresses, address.Address)
 			}
 		}
 	}
@@ -216,7 +247,7 @@ func (r *ConfigurationReconciler) findMasterNodes(ctx context.Context, config *k
 	}
 
 	config.Status.MatchingNodeAddresses = nodeAddresses
-	return r.Status().Update(ctx, config)
+	return nil
 }
 
 // initializeConditions will initialise baseline conditions for the configuration object
@@ -224,8 +255,46 @@ func (r *ConfigurationReconciler) initializeConditions(ctx context.Context, conf
 	if len(config.Status.Conditions) == 2 {
 		return nil
 	}
-	configObj := config.DeepCopy()
 	config.SetCondition(kubeovniov1.ErroredObjectsCondition, metav1.ConditionUnknown, "", "Unknown")
 	config.SetCondition(kubeovniov1.WaitingForMatchignNodesCondition, metav1.ConditionTrue, "", "Unknown")
-	return r.Status().Patch(ctx, config, client.MergeFrom(configObj))
+	return nil
+}
+
+// reconcileClusterScopedReference creates a dummy namespace and sets that as owner for cluster scoped objects
+// this is deleted when the Configuration is deleted to ensure that the cluster scoped objects managed the configuration
+// are GC'd
+func (r *ConfigurationReconciler) reconcileClusterScopedReference(ctx context.Context, config *kubeovniov1.Configuration) error {
+	ns := &corev1.Namespace{}
+	err := r.Client.Get(ctx, types.NamespacedName{Name: kubeovniov1.KubeOVNFakeNamespace}, ns)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			newNS := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: kubeovniov1.KubeOVNFakeNamespace,
+				},
+			}
+			return r.Client.Create(ctx, newNS)
+		}
+		return err
+	}
+	return nil
+}
+
+// deleteClusterScopedReference is triggered during configuration deletion
+// and triggers deletion of cluster scoped objects
+func (r *ConfigurationReconciler) deleteClusterScopedReference(ctx context.Context) error {
+	newNS := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: kubeovniov1.KubeOVNFakeNamespace,
+		},
+	}
+
+	err := r.Client.Get(ctx, types.NamespacedName{Name: kubeovniov1.KubeOVNFakeNamespace}, newNS)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	return r.Client.Delete(ctx, newNS)
 }

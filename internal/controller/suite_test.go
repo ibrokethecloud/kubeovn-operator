@@ -122,6 +122,7 @@ var _ = BeforeSuite(func() {
 		Namespace:     defaultKubeovnNamespace,
 		EventRecorder: mgr.GetEventRecorderFor("configuration-controller"),
 		Log:           logf.FromContext(ctx),
+		RestConfig:    mgr.GetConfig(),
 	}).SetupWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 

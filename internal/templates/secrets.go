@@ -1,7 +1,7 @@
 package templates
 
 var (
-	kube_ovn_tls_secret = `{{- if .Values.networking.ENABLE_SSL }}
+	kube_ovn_tls_secret = `{{- if .Values.networking.enableSSL }}
 {{- $cn := "ovn" -}}
 {{- $ca := genCA "ovn-ca" 3650 -}}
 ---

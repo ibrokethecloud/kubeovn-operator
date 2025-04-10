@@ -327,6 +327,7 @@ const (
 	DefaultConfigurationName         = "kubeovn"
 	WaitingForMatchignNodesCondition = "waitingForMatchignNodes"
 	ErroredObjectsCondition          = "erroredObjects"
+	KubeOVNFakeNamespace             = "kubeovn-owner-namespace"
 )
 
 var (

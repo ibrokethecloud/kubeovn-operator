@@ -217,7 +217,7 @@ func main() {
 		// limit the controller to only watch and manage objects it is deployed to
 		Cache: cache.Options{
 			DefaultNamespaces: map[string]cache.Config{
-				namespace: cache.Config{},
+				namespace: {},
 			},
 		},
 	})
@@ -234,6 +234,7 @@ func main() {
 		Namespace:     namespace,
 		EventRecorder: mgr.GetEventRecorderFor("configuration-controller"),
 		Log:           logf.FromContext(ctx),
+		RestConfig:    mgr.GetConfig(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Configuration")
 		os.Exit(1)

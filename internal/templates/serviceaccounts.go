@@ -4,8 +4,8 @@ var (
 	ovn_sa_template = `apiVersion: v1
 kind: ServiceAccount
 metadata:
-name: ovn
-namespace: {{ .Values.namespace }}
+  name: ovn
+  namespace: {{ .Values.namespace }}
 {{-  if .Values.global.registry.imagePullSecrets }}
 imagePullSecrets:
 {{- range $index, $secret := .Values.global.registry.imagePullSecrets }}
@@ -19,8 +19,8 @@ imagePullSecrets:
 	ovn_ovs_template = `apiVersion: v1
 kind: ServiceAccount
 metadata:
-name: ovn-ovs
-namespace: {{ .Values.namespace }}
+  name: ovn-ovs
+  namespace: {{ .Values.namespace }}
 {{-  if .Values.global.registry.imagePullSecrets }}
 imagePullSecrets:
 {{- range $index, $secret := .Values.global.registry.imagePullSecrets }}
@@ -33,8 +33,8 @@ imagePullSecrets:
 	kube_ovn_cni = `apiVersion: v1
 kind: ServiceAccount
 metadata:
-name: kube-ovn-cni
-namespace: {{ .Values.namespace }}
+  name: kube-ovn-cni
+  namespace: {{ .Values.namespace }}
 {{-  if .Values.global.registry.imagePullSecrets }}
 imagePullSecrets:
 {{- range $index, $secret := .Values.global.registry.imagePullSecrets }}
@@ -47,8 +47,8 @@ imagePullSecrets:
 	kube_ovn_app_template = `apiVersion: v1
 kind: ServiceAccount
 metadata:
-name: kube-ovn-app
-namespace: {{ .Values.namespace }}
+  name: kube-ovn-app
+  namespace: {{ .Values.namespace }}
 {{-  if .Values.global.registry.imagePullSecrets }}
 imagePullSecrets:
 {{- range $index, $secret := .Values.global.registry.imagePullSecrets }}
