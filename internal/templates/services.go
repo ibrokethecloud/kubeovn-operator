@@ -14,7 +14,7 @@ spec:
   ports:
     - port: 10660
       name: metrics
-  {{- if eq .Values.networking.NET_STACK "dual_stack" }}
+  {{- if eq .Values.networking.netStack "dual_stack" }}
   ipFamilyPolicy: PreferDualStack
   {{- end }}`
 
@@ -33,7 +33,7 @@ spec:
   selector:
     app: kube-ovn-monitor
   sessionAffinity: None
-  {{- if eq .Values.networking.NET_STACK "dual_stack" }}
+  {{- if eq .Values.networking.netStack "dual_stack" }}
   ipFamilyPolicy: PreferDualStack
   {{- end }}`
 

@@ -17,7 +17,7 @@ metadata:
   name: ovn-vpc-nat-gw-config
   namespace: kube-system
 data:
-  enable-vpc-nat-gw: "{{ .Values.components.ENABLE_NAT_GW }}"`
+  enable-vpc-nat-gw: "{{ .Values.components.enableNATGateway }}"`
 
 	ConfigMapList = []string{ovn_vpc_nat_config, ovn_vpc_nat_gw_config}
 )

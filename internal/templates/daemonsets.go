@@ -111,12 +111,12 @@ spec:
             timeoutSeconds: 45
           resources:
             requests:
-              cpu: {{ index .Values "ovs-ovn" "requests" "cpu" }}
-              memory: {{ index .Values "ovs-ovn" "requests" "memory" }}
+              cpu: {{ index .Values "ovsOVN" "requests" "cpu" }}
+              memory: {{ index .Values "ovsOVN" "requests" "memory" }}
             limits:
-              cpu: {{ index .Values "ovs-ovn" "limits" "cpu" }}
+              cpu: {{ index .Values "ovsOVN" "limits" "cpu" }}
               {{.Values.hugepageSizeType}}: {{.Values.hugePages}}
-              memory: {{ index .Values "ovs-ovn" "limits" "memory" }}
+              memory: {{ index .Values "ovsOVN" "limits" "memory" }}
       nodeSelector:
         kubernetes.io/os: "linux"
         ovn.kubernetes.io/ovs_dp_type: "userspace"
@@ -385,11 +385,11 @@ spec:
           timeoutSeconds: 5
         resources:
           requests:
-            cpu: {{ index .Values "kube-ovn-cni" "requests" "cpu" }}
-            memory: {{ index .Values "kube-ovn-cni" "requests" "memory" }}
+            cpu: {{ index .Values "kubeOvnCNI" "requests" "cpu" }}
+            memory: {{ index .Values "kubeOvnCNI" "requests" "memory" }}
           limits:
-            cpu: {{ index .Values "kube-ovn-cni" "limits" "cpu" }}
-            memory: {{ index .Values "kube-ovn-cni" "limits" "memory" }}
+            cpu: {{ index .Values "kubeOvnCNI" "limits" "cpu" }}
+            memory: {{ index .Values "kubeOvnCNI" "limits" "memory" }}
       nodeSelector:
         kubernetes.io/os: "linux"
       volumes:
@@ -497,7 +497,7 @@ spec:
             - -xec
             - |
               chown -R nobody: /var/run/ovn /var/log/ovn /etc/openvswitch /var/run/openvswitch /var/log/openvswitch
-              {{- if not .Values.DISABLE_MODULES_MANAGEMENT }}
+              {{- if not .Values.disableModulesManagement }}
               iptables -V
               {{- else }}
               ln -sf /bin/true /usr/local/sbin/modprobe
@@ -643,8 +643,8 @@ spec:
               cpu: {{ .values.dpdkCPU }}
               memory: {{ .values.dpdkMEMORY }}
               {{- else }}
-              cpu: {{ index .Values "ovs-ovn" "requests" "cpu" }}
-              memory: {{ index .Values "ovs-ovn" "requests" "memory" }}
+              cpu: {{ index .Values "ovsOVN" "requests" "cpu" }}
+              memory: {{ index .Values "ovsOVN" "requests" "memory" }}
               {{- end }}
             limits:
               {{- if .values.dpdk }}
@@ -652,8 +652,8 @@ spec:
               memory: {{ .values.dpdkMEMORY }}
               hugepages-1Gi: 1Gi
               {{- else }}
-              cpu: {{ index .Values "ovs-ovn" "limits" "cpu" }}
-              memory: {{ index .Values "ovs-ovn" "limits" "memory" }}
+              cpu: {{ index .Values "ovsOVN" "limits" "cpu" }}
+              memory: {{ index .Values "ovsOVN" "limits" "memory" }}
               {{- end }}
       nodeSelector:
         kubernetes.io/os: "linux"
@@ -824,11 +824,11 @@ spec:
               name: kube-ovn-tls
           resources:
             requests:
-              cpu: {{ index .Values "kube-ovn-pinger" "requests" "cpu" }}
-              memory: {{ index .Values "kube-ovn-pinger" "requests" "memory" }}
+              cpu: {{ index .Values "kubeOvnPinger" "requests" "cpu" }}
+              memory: {{ index .Values "kubeOvnPinger" "requests" "memory" }}
             limits:
-              cpu: {{ index .Values "kube-ovn-pinger" "limits" "cpu" }}
-              memory: {{ index .Values "kube-ovn-pinger" "limits" "memory" }}
+              cpu: {{ index .Values "kubeOvnPinger" "limits" "cpu" }}
+              memory: {{ index .Values "kubeOvnPinger" "limits" "memory" }}
       nodeSelector:
         kubernetes.io/os: "linux"
       volumes:

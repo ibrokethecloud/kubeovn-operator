@@ -37,12 +37,12 @@ const (
     "apiVersion": "kubeovn.io/v1",
     "kind": "Configuration",
     "metadata": {
-        "creationTimestamp": "2025-04-15T05:54:09Z",
+        "creationTimestamp": "2025-04-16T02:10:18Z",
         "generation": 1,
         "name": "kubeovn",
         "namespace": "kube-system",
-        "resourceVersion": "2079058",
-        "uid": "3e76b6a0-d934-4ef7-bc89-b237fd766f11"
+        "resourceVersion": "2371970",
+        "uid": "d22666a1-00f6-4487-959f-b524a30de3ca"
     },
     "spec": {
         "cniConf": {
@@ -80,9 +80,9 @@ const (
             "mirrorInterface": "mirror0"
         },
         "dpdkCPU": "0",
-        "dpdkMemory": "0",
+        "dpdkMEMORY": "0",
         "dpdkVersion": "19.11",
-        "dualStackSpec": {
+        "dualStack": {
             "joinCIDR": "fd00:100:64::/112",
             "pingerExternalAddress": "2606:4700:4700::1111",
             "pingerExternalDomain": "google.com.",
@@ -174,7 +174,9 @@ const (
         "networking": {
             "defaultSubnet": "ovn-default",
             "defaultVPC": "ovn-cluster",
+            "enableECMP": false,
             "enableEIPSNAT": true,
+            "enableMetrics": true,
             "enableSSL": false,
             "netStack": "ipv4",
             "networkType": "geneve",
@@ -182,7 +184,7 @@ const (
             "ovnLeaderProbeInterval": 5,
             "ovnNorthdNThreads": 1,
             "ovnNorthdProbeInterval": 5000,
-            "ovnRemoteOverflowInterval": 10,
+            "ovnRemoteOpenflowInterval": 10,
             "ovnRemoteProbeInterval": 10000,
             "podNicType": "veth-pair",
             "probeInterval": 180000,
@@ -193,7 +195,7 @@ const (
                 "vlanName": "ovn-vlan"
             }
         },
-        "openvswitchDir": "/etc/origin/openvswitch",
+        "openVSwitchDir": "/etc/origin/openvswitch",
         "ovnCentral": {
             "limits": {
                 "cpu": "0",
@@ -220,6 +222,32 @@ const (
             "inspectInterval": 20,
             "ovsVSCtlConcurrency": 100
         }
+    },
+    "status": {
+        "conditions": [
+            {
+                "lastTransitionTime": "2025-04-16T05:33:01Z",
+                "message": "",
+                "observedGeneration": 1,
+                "reason": "Unknown",
+                "status": "Unknown",
+                "type": "erroredObjects"
+            },
+            {
+                "lastTransitionTime": "2025-04-16T05:33:01Z",
+                "message": "",
+                "observedGeneration": 1,
+                "reason": "Unknown",
+                "status": "True",
+                "type": "waitingForMatchignNodes"
+            }
+        ],
+        "matchingNodeAddresses": [
+            "172.18.0.2",
+            "172.18.0.3",
+            "172.18.0.4"
+        ],
+        "status": "Deployed"
     }
 }`
 )
@@ -262,9 +290,12 @@ func Test_deployments(t *testing.T) {
 	returnedObjects, err := GenerateObjects(sourcetemplate.DeploymentList, c, &deployment, nil)
 	assert.NoError(err)
 	for _, v := range returnedObjects {
+		fmt.Println(v.GetName())
 		if v.GetName() == "kube-ovn-monitor" {
+			fmt.Println(v)
 			var out []byte
 			out, err = yaml.Marshal(v)
+			assert.NoError(err)
 			fmt.Println(string(out))
 		}
 	}
@@ -281,6 +312,7 @@ func Test_daemonsets(t *testing.T) {
 		if v.GetName() == "kube-ovn-pinger" {
 			var out []byte
 			out, err = yaml.Marshal(v)
+			assert.NoError(err)
 			fmt.Println(string(out))
 		}
 	}

@@ -116,11 +116,11 @@ spec:
               value: '{{ include "kubeovn.ovn.versionCompatibility" . }}'
           resources:
             requests:
-              cpu: {{ index .Values "ovn-central" "requests" "cpu" }}
-              memory: {{ index .Values "ovn-central" "requests" "memory" }}
+              cpu: {{ index .Values "ovnCentral" "requests" "cpu" }}
+              memory: {{ index .Values "ovnCentral" "requests" "memory" }}
             limits:
-              cpu: {{ index .Values "ovn-central" "limits" "cpu" }}
-              memory: {{ index .Values "ovn-central" "limits" "memory" }}
+              cpu: {{ index .Values "ovnCentral" "limits" "cpu" }}
+              memory: {{ index .Values "ovnCentral" "limits" "memory" }}
           volumeMounts:
             - mountPath: /var/run/ovn
               name: host-run-ovn
@@ -269,19 +269,19 @@ spec:
           - --cluster-router={{ .Values.networking.defaultVPC }}
           - --node-switch={{ .Values.networking.nodeSubnet }}
           - --node-switch-cidr=
-          {{- if eq .Values.networking.NET_STACK "dual_stack" -}}
+          {{- if eq .Values.networking.netStack "dual_stack" -}}
           {{ .Values.dualStack.JOIN_CIDR }}
-          {{- else if eq .Values.networking.NET_STACK "ipv4" -}}
+          {{- else if eq .Values.networking.netStack "ipv4" -}}
           {{ .Values.ipv4.JOIN_CIDR }}
-          {{- else if eq .Values.networking.NET_STACK "ipv6" -}}
+          {{- else if eq .Values.networking.netStack "ipv6" -}}
           {{ .Values.ipv6.JOIN_CIDR }}
           {{- end }}
           - --service-cluster-ip-range=
-          {{- if eq .Values.networking.NET_STACK "dual_stack" -}}
+          {{- if eq .Values.networking.netStack "dual_stack" -}}
           {{ .Values.dualStack.SVC_CIDR }}
-          {{- else if eq .Values.networking.NET_STACK "ipv4" -}}
+          {{- else if eq .Values.networking.netStack "ipv4" -}}
           {{ .Values.ipv4.SVC_CIDR }}
-          {{- else if eq .Values.networking.NET_STACK "ipv6" -}}
+          {{- else if eq .Values.networking.netStack "ipv6" -}}
           {{ .Values.ipv6.SVC_CIDR }}
           {{- end }}
           - --network-type={{- .Values.networking.networkType }}
@@ -380,11 +380,11 @@ spec:
             timeoutSeconds: 5
           resources:
             requests:
-              cpu: {{ index .Values "kube-ovn-controller" "requests" "cpu" }}
-              memory: {{ index .Values "kube-ovn-controller" "requests" "memory" }}
+              cpu: {{ index .Values "kubeOvnController" "requests" "cpu" }}
+              memory: {{ index .Values "kubeOvnController" "requests" "memory" }}
             limits:
-              cpu: {{ index .Values "kube-ovn-controller" "limits" "cpu" }}
-              memory: {{ index .Values "kube-ovn-controller" "limits" "memory" }}
+              cpu: {{ index .Values "kubeOvnController" "limits" "cpu" }}
+              memory: {{ index .Values "kubeOvnController" "limits" "memory" }}
       nodeSelector:
         kubernetes.io/os: "linux"
       volumes:
@@ -393,10 +393,10 @@ spec:
             path: /etc/localtime
         - name: kube-ovn-log
           hostPath:
-            path: {{ .Values.log_conf.LOG_DIR }}/kube-ovn
+            path: {{ .Values.logConfig.logDir }}/kube-ovn
         - name: ovn-log
           hostPath:
-            path: {{ .Values.log_conf.LOG_DIR }}/ovn
+            path: {{ .Values.logConfig.logDir }}/ovn
         - name: kube-ovn-tls
           secret:
             optional: true
@@ -636,11 +636,11 @@ spec:
               value: "{{- .Values.components.enableBindLocalIP }}"
           resources:
             requests:
-              cpu: {{ index .Values "kube-ovn-monitor" "requests" "cpu" }}
-              memory: {{ index .Values "kube-ovn-monitor" "requests" "memory" }}
+              cpu: {{ index .Values "kubeOvnMonitor" "requests" "cpu" }}
+              memory: {{ index .Values "kubeOvnMonitor" "requests" "memory" }}
             limits:
-              cpu: {{ index .Values "kube-ovn-monitor" "limits" "cpu" }}
-              memory: {{ index .Values "kube-ovn-monitor" "limits" "memory" }}
+              cpu: {{ index .Values "kubeOvnMonitor" "limits" "cpu" }}
+              memory: {{ index .Values "kubeOvnMonitor" "limits" "memory" }}
           volumeMounts:
             - mountPath: /var/run/ovn
               name: host-run-ovn
@@ -700,7 +700,7 @@ spec:
             secretName: kube-ovn-tls
         - name: kube-ovn-log
           hostPath:
-          path: {{ .Values.logConfig.logDir }}/kube-ovn
+            path: {{ .Values.logConfig.logDir }}/kube-ovn
 `
 
 	DeploymentList = []string{ovn_central_deployment, kube_ovn_controller_deployment, ovn_ic_controller_deployment, kube_ovn_monitor_deployment}

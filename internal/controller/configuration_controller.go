@@ -22,10 +22,7 @@ import (
 	"reflect"
 
 	"github.com/go-logr/logr"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -57,20 +54,6 @@ type ConfigurationReconciler struct {
 }
 
 type reconcileFuncs func(context.Context, *kubeovniov1.Configuration) error
-
-// orderedObjectList iterates templated object lists and applies them in order
-var orderedObjectList = map[client.Object][]string{
-	&apiextensionsv1.CustomResourceDefinition{}: templates.CRDList,
-	&corev1.Secret{}:             templates.SecretList,
-	&corev1.ServiceAccount{}:     templates.ServiceAccountList,
-	&rbacv1.RoleBinding{}:        templates.RoleBindingList,
-	&rbacv1.ClusterRole{}:        templates.ClusterRoleList,
-	&rbacv1.ClusterRoleBinding{}: templates.ClusterRoleBindingList,
-	&corev1.ConfigMap{}:          templates.ConfigMapList,
-	&appsv1.Deployment{}:         templates.DeploymentList,
-	&appsv1.DaemonSet{}:          templates.DaemonsetList,
-	&corev1.Service{}:            templates.ServicesList,
-}
 
 // +kubebuilder:rbac:groups=kubeovn.io,resources=configurations,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=kubeovn.io,resources=configurations/status,verbs=get;update;patch
@@ -143,7 +126,7 @@ func (r *ConfigurationReconciler) applyObject(ctx context.Context, config *kubeo
 		return fmt.Errorf("error looking up fake namespaced object: %v", err)
 	}
 
-	for objectType, objectList := range orderedObjectList {
+	for objectType, objectList := range templates.OrderedObjectList {
 		r.Log.WithValues("objectType", objectType).Info("processing object type")
 		// chceck if objectType is a clusterscoped object so we can defined correct ownership
 		namespaced, err := apiutil.IsObjectNamespaced(objectType, r.Scheme, r.Client.RESTMapper())
@@ -205,7 +188,7 @@ func (r *ConfigurationReconciler) filterObject(ctx context.Context, obj client.O
 }
 
 func (r *ConfigurationReconciler) AddWatches(b *builder.Builder) *builder.Builder {
-	for key := range orderedObjectList {
+	for key := range templates.OrderedObjectList {
 		b.Watches(key, handler.EnqueueRequestsFromMapFunc(r.filterObject))
 	}
 	return b

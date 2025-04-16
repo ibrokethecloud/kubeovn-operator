@@ -7,16 +7,18 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/Masterminds/sprig/v3"
+	ovnoperatorv1 "github.com/harvester/kubeovn-operator/api/v1"
+	"github.com/iancoleman/strcase"
 	"helm.sh/helm/v4/pkg/engine"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/Masterminds/sprig/v3"
-	"github.com/iancoleman/strcase"
-
-	ovnoperatorv1 "github.com/harvester/kubeovn-operator/api/v1"
+	"sigs.k8s.io/yaml"
 )
 
 type values struct {
@@ -43,8 +45,7 @@ func GenerateObjects(templates []string, config *ovnoperatorv1.Configuration, ob
 		return nil, fmt.Errorf("failed to set kubeovn field in values map: %v", err)
 	}
 
-	valsObj = AlternateMapValues(valsObj)
-	fmt.Println(valsObj)
+	//valsObj = AlternateMapValues(valsObj)
 	for _, sourceTemplate := range templates {
 		returnedObject, err := generateObject(sourceTemplate, valsObj, object, restConfig)
 		if err != nil {
@@ -58,6 +59,10 @@ func GenerateObjects(templates []string, config *ovnoperatorv1.Configuration, ob
 }
 
 func generateObject(input string, valuesObj map[string]interface{}, object client.Object, restConfig *rest.Config) (client.Object, error) {
+	newObj := initialiseNewObject(object)
+	if newObj == nil {
+		return nil, fmt.Errorf("could not initialise new object for type: %T", object)
+	}
 	var output bytes.Buffer
 	f := sprig.TxtFuncMap()
 	f["lookup"] = engine.NewLookupFunction(restConfig)
@@ -71,12 +76,11 @@ func generateObject(input string, valuesObj map[string]interface{}, object clien
 	if len(output.String()) == 0 {
 		return nil, nil
 	}
-	fmt.Printf("----\n%s----\n", output.String())
-	err = yaml.Unmarshal(output.Bytes(), object)
+	err = yaml.Unmarshal(output.Bytes(), newObj)
 	if err != nil {
 		return nil, err
 	}
-	return object, nil
+	return newObj, nil
 }
 
 // needed to assert convert ensure templates need little to no change at all
@@ -144,4 +148,30 @@ func AlternateMapValues(data map[string]interface{}) map[string]interface{} {
 		}
 	}
 	return data
+}
+
+func initialiseNewObject(object client.Object) client.Object {
+	switch object.(type) {
+	case *appsv1.Deployment:
+		return &appsv1.Deployment{}
+	case *apiextensionsv1.CustomResourceDefinition:
+		return &apiextensionsv1.CustomResourceDefinition{}
+	case *corev1.Secret:
+		return &corev1.Secret{}
+	case *corev1.ServiceAccount:
+		return &corev1.ServiceAccount{}
+	case *corev1.ConfigMap:
+		return &corev1.ConfigMap{}
+	case *rbacv1.RoleBinding:
+		return &rbacv1.RoleBinding{}
+	case *rbacv1.ClusterRole:
+		return &rbacv1.ClusterRole{}
+	case *rbacv1.ClusterRoleBinding:
+		return &rbacv1.ClusterRoleBinding{}
+	case *appsv1.DaemonSet:
+		return &appsv1.DaemonSet{}
+	case *corev1.Service:
+		return &corev1.Service{}
+	}
+	return nil
 }
