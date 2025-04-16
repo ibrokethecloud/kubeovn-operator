@@ -69,15 +69,14 @@ var _ = Describe("Configuration Controller", func() {
 			}
 		})
 
-		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
+		/*AfterEach(func() {
 			resource := &kubeovniov1.Configuration{}
 			err := k8sClient.Get(ctx, typedConfig, resource)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Cleanup the specific resource instance Configuration")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
-		})
+		})*/
 
 		It("reconcile configuration object", func() {
 

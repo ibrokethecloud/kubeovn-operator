@@ -42,7 +42,7 @@ type ConfigurationSpec struct {
 	// +kubebuilder:default:={podCIDR:"fd00:10:16::/112",podGateway:"fd00:10:16::1", serviceCIDR:"fd00:10:96::/112",joinCIDR:"fd00:100:64::/112",pingerExternalAddress:"2606:4700:4700::1111",pingerExternalDomain:"google.com."}
 	IPv6 NetworkStackSpec `json:"ipv6,omitempty"`
 	// +kubebuilder:default:={podCIDR:"10.16.0.0/16,fd00:10:16::/112",podGateway:"10.16.0.1,fd00:10:16::1", serviceCIDR:"10.96.0.0/12,fd00:10:96::/112",joinCIDR:"100.64.0.0/16,fd00:100:64::/112",pingerExternalAddress:"1.1.1.1,2606:4700:4700::1111",pingerExternalDomain:"google.com."}
-	DualStackSpec NetworkStackSpec `json:"dualStackSpec,omitempty"`
+	DualStack NetworkStackSpec `json:"dualStack,omitempty"`
 	// +kubebuilder:default:={}
 	Performance PerformanceSpec `json:"performance,omitempty"`
 	// +kubebuilder:default:={}
@@ -57,63 +57,69 @@ type ConfigurationSpec struct {
 	OpenVSwitchDir string `json:"openVSwitchDir,omitempty"`
 	// +kubebuilder:default:="/etc/origin/ovn"
 	OVNDir                   string `json:"ovnDir,omitempty"`
-	DisableModulesManagement bool   `json:"disableModulesManagement,omitempty"`
-	HybridDPDK               bool   `json:"hybridDPDK,omitempty"`
+	DisableModulesManagement *bool  `json:"disableModulesManagement,omitempty"`
+	HybridDPDK               *bool  `json:"hybridDPDK,omitempty"`
 	// +kubebuilder:default:="hugepages-2Mi"
 	HugepageSizeType string `json:"hugepageSizeType,omitempty"`
 	// +kubebuilder:default:="1Gi"
 	HugePages resource.Quantity `json:"hugePages,omitempty"`
-	DPDK      bool              `json:"dpdk,omitempty"`
+	DPDK      *bool             `json:"dpdk,omitempty"`
 	// +kubebuilder:default:="19.11"
 	DPDKVersion string `json:"dpdkVersion,omitempty"`
 	// +kubebuilder:default:="1000m"
 	DPDKCPU resource.Quantity `json:"dpdkCPU,omitempty"`
 	// +kubebuilder:default:="2Gi"
-	DPDKMemory resource.Quantity `json:"dpdkMemory,omitempty"`
-	//+kubebuilder:default:={requests:{cpu:"300m",memory:"200Mi"},limits:{cpu:"3",memory:"4Gi"}}
+	DPDKMemory resource.Quantity `json:"dpdkMEMORY,omitempty"`
+	// +kubebuilder:default:={requests:{cpu:"300m",memory:"200Mi"},limits:{cpu:"3",memory:"4Gi"}}
 	OVNCentral ResourceSpec `json:"ovnCentral,omitempty"`
-	//+kubebuilder:default:={requests:{cpu:"200m",memory:"200Mi"},limits:{cpu:"2", memory:"1000Mi"}}
+	// +kubebuilder:default:={requests:{cpu:"200m",memory:"200Mi"},limits:{cpu:"2", memory:"1000Mi"}}
 	OVSOVN ResourceSpec `json:"ovsOVN,omitempty"`
-	//+kubebuilder:default:={requests:{cpu:"200m",memory:"200Mi"},limits:{cpu:"1",memory:"1000Mi"}}
-	KubeOVNController ResourceSpec `json:"kubeOVNController,omitempty"`
-	//+kubebuilder:default:={requests:{cpu:"100m",memory:"100Mi"},limits:{cpu:"1",memory:"1000Mi"}}
-	KubeOVNCNI ResourceSpec `json:"kubeOVNCNI,omitempty"`
-	//+kubebuilder:default:={requests:{cpu:"100m",memory:"100Mi"},limits:{cpu:"200m",memory:"400Mi"}}
-	KubeOVNPinger ResourceSpec `json:"kubeOVNPinger,omitempty"`
-	//+kubebuilder:default:={requests:{cpu:"200m",memory:"200Mi"},limits:{cpu:"200m",memory:"200Mi"}}
-	KubeOVNMonitor ResourceSpec `json:"kubeOVNMonitor,omitempty"`
+	// +kubebuilder:default:={requests:{cpu:"200m",memory:"200Mi"},limits:{cpu:"1",memory:"1000Mi"}}
+	KubeOVNController ResourceSpec `json:"kubeOvnController,omitempty"`
+	// +kubebuilder:default:={requests:{cpu:"100m",memory:"100Mi"},limits:{cpu:"1",memory:"1000Mi"}}
+	KubeOVNCNI ResourceSpec `json:"kubeOvnCNI,omitempty"`
+	// +kubebuilder:default:={requests:{cpu:"100m",memory:"100Mi"},limits:{cpu:"200m",memory:"400Mi"}}
+	KubeOVNPinger ResourceSpec `json:"kubeOvnPinger,omitempty"`
+	// +kubebuilder:default:={requests:{cpu:"200m",memory:"200Mi"},limits:{cpu:"200m",memory:"200Mi"}}
+	KubeOVNMonitor ResourceSpec `json:"kubeOvnMonitor,omitempty"`
 }
 
 type GlobalSpec struct {
 	Registry RegistrySpec `json:"registry,omitempty"`
+	Images   ImageDetails `json:"images,omitempty"`
 }
 
 type RegistrySpec struct {
 	// +kubebuilder:default:="docker.io/kubeovn"
-	Address          string       `json:"address,omitempty"`
-	ImagePullSecrets []string     `json:"imagePullSecrets,omitempty"`
-	Images           ImageDetails `json:"images,omitempty"`
+	Address          string   `json:"address,omitempty"`
+	ImagePullSecrets []string `json:"imagePullSecrets,omitempty"`
 }
 
 type ImageDetails struct {
+	KubeOVNImage KubeOVNImageSpec `json:"kubeovn,omitempty"`
+}
+
+type KubeOVNImageSpec struct {
 	// +kubebuilder:default:="kube-ovn"
 	Repository string `json:"repository,omitempty"`
-	Tag        string `json:"tag,omitempty"` // defaults to version passed from build arg
+	// +kubebuilder:default:="v1.14.0"
+	Tag string `json:"tag,omitempty"` // defaults to version passed from build arg
 	// +kubebuilder:default:="kube-ovn-dpdk"
 	DpdkRepository string `json:"dpdkRepository,omitempty"`
 	// +kubebuilder:default:="vpc-nat-gateway"
 	VpcRepository string `json:"vpcRepository,omitempty"`
 	// +kubebuilder:default:=true
-	SupportArm bool `json:"supportArm,omitempty"`
+	SupportArm *bool `json:"supportArm,omitempty"`
 	// +kubebuilder:default:=true
-	ThirdParty bool `json:"thirdParty,omitempty"`
+	ThirdParty *bool `json:"thirdParty,omitempty"`
 }
 
 type NetworkingSpec struct {
 	// +kubebuilder:default:="ipv4"
 	// +kubebuilder:validation:Enum=ipv4;ipv6;dual_stack
-	NetStack  string `json:"netStack,omitempty"`
-	EnableSSL bool   `json:"enableSSL,omitempty"`
+	NetStack string `json:"netStack,omitempty"`
+	// +kubebuilder:default:=false
+	EnableSSL *bool `json:"enableSSL,omitempty"`
 	// +kubebuilder:default:="geneve"
 	// +kubebuilder:validation:Enum=geneve;vlan
 	NetworkType string `json:"networkType,omitempty"`
@@ -127,15 +133,19 @@ type NetworkingSpec struct {
 	PodNicType string `json:"podNicType,omitempty"`
 	// +kubebuilder:default:={}
 	Vlan             VlanSpec `json:"vlan,omitempty"`
-	ExchangeLinkName bool     `json:"exchangeLinkName,omitempty"`
+	ExchangeLinkName *bool    `json:"exchangeLinkName,omitempty"`
 	// +kubebuilder:default:=true
-	EnableEIPSNAT bool `json:"enableEIPSNAT,omitempty"`
+	EnableEIPSNAT *bool `json:"enableEIPSNAT,omitempty"`
 	// +kubebuilder:default:="ovn-default"
 	DefaultSubnet string `json:"defaultSubnet,omitempty"`
 	// +kubebuilder:default:="ovn-cluster"
 	DefaultVPC string `json:"defaultVPC,omitempty"`
 	// +kubebuilder:default:="join"
-	NodeSubnet      string `json:"nodeSubnet,omitempty"`
+	NodeSubnet string `json:"nodeSubnet,omitempty"`
+	// +kubebuilder:default:=false
+	EnableECMP *bool `json:"enableECMP,omitempty"`
+	// +kubebuilder:default:=true
+	EnableMetrics   *bool  `json:"enableMetrics,omitempty"`
 	NodeLocalDNSIPS string `json:"nodeLocalDNSIPS,omitempty"`
 	// +kubebuilder:default:=180000
 	// +kubebuilder:validation:Minimum=1
@@ -151,11 +161,11 @@ type NetworkingSpec struct {
 	OvnRemoteProbeInterval int `json:"ovnRemoteProbeInterval,omitempty"`
 	// +kubebuilder:default:=10
 	// +kubebuilder:validation:Minimum=1
-	OvnRemoteOverflowInterval int `json:"ovnRemoteOverflowInterval,omitempty"`
+	OvnRemoteOpenflowInterval int `json:"ovnRemoteOpenflowInterval,omitempty"`
 	// +kubebuilder:default:=1
 	// +kubebuilder:validation:Minimum=1
-	OvnNorthdNThreads int  `json:"ovnNorthdNThreads,omitempty"`
-	EnableCompact     bool `json:"enableCompact,omitempty"`
+	OvnNorthdNThreads int   `json:"ovnNorthdNThreads,omitempty"`
+	EnableCompact     *bool `json:"enableCompact,omitempty"`
 }
 
 type VlanSpec struct {
@@ -172,33 +182,43 @@ type VlanSpec struct {
 
 type ComponentSpec struct {
 	// +kubebuilder:default:=true
-	EnableLB bool `json:"enableLB,omitempty"`
+	EnableLB *bool `json:"enableLB,omitempty"`
 	// +kubebuilder:default:=true
-	EnableNP bool `json:"enableNP,omitempty"`
+	EnableNP *bool `json:"enableNP,omitempty"`
 	// +kubebuilder:default:=true
-	EnableExternalVPC bool `json:"enableExternalVPC,omitempty"`
-	HardwareOffload   bool `json:"hardwareOffload,omitempty"`
-	EnableLBSVC       bool `json:"enableLBSVC,omitempty"`
+	EnableExternalVPC *bool `json:"enableExternalVPC,omitempty"`
+	// +kubebuilder:default:=false
+	HardwareOffload *bool `json:"hardwareOffload,omitempty"`
+	// +kubebuilder:default:=false
+	EnableLBSVC *bool `json:"enableLBSVC,omitempty"`
 	// +kubebuilder:default:=true
-	EnableKeepVMIP bool `json:"enableKeepVMIP,omitempty"`
+	EnableKeepVMIP *bool `json:"enableKeepVMIP,omitempty"`
 	// +kubebuilder:default:=true
-	LsDnatModDlDst bool `json:"lsDnatModDlDst,omitempty"`
+	LsDnatModDlDst *bool `json:"lsDnatModDlDst,omitempty"`
 	// +kubebuilder:default:=true
-	LsCtSkipOstLportIPS bool `json:"lsCtSkipOstLportIPS,omitempty"`
+	LsCtSkipOstLportIPS *bool `json:"lsCtSkipOstLportIPS,omitempty"`
 	// +kubebuilder:default:=true
-	CheckGateway   bool `json:"checkGateway,omitempty"`
-	LogicalGateway bool `json:"logicalGateway,omitempty"`
+	CheckGateway *bool `json:"checkGateway,omitempty"`
+	// +kubebuilder:default:=false
+	LogicalGateway *bool `json:"logicalGateway,omitempty"`
 	// +kubebuilder:default:=true
-	EnableBindLocalIP  bool `json:"enableBindLocalIP,omitempty"`
-	SecureService      bool `json:"secureService,omitempty"`
-	U2OInterconnection bool `json:"u2oInterconnection,omitempty"`
-	EnableTProxy       bool `json:"enableTProxy,omitempty"`
-	EnableIC           bool `json:"enableIC,omitempty"`
+	EnableBindLocalIP *bool `json:"enableBindLocalIP,omitempty"`
+	// +kubebuilder:default:=false
+	SecureServing **bool `json:"secureServing,omitempty"`
+	// +kubebuilder:default:=false
+	U2OInterconnection *bool `json:"u2oInterconnection,omitempty"`
+	// +kubebuilder:default:=false
+	EnableTProxy *bool `json:"enableTProxy,omitempty"`
+	// +kubebuilder:default:=false
+	EnableIC *bool `json:"enableIC,omitempty"`
 	// +kubebuilder:default:=true
-	EnableNATGateway bool `json:"enableNATGateway,omitempty"`
-	EnableOVNIPSec   bool `json:"enableOVNIPSec,omitempty"`
-	EnableANP        bool `json:"enableANP,omitempty"`
-	SetVLANTxOff     bool `json:"setVLANTxOff,omitempty"`
+	EnableNATGateway *bool `json:"enableNATGateway,omitempty"`
+	// +kubebuilder:default:=false
+	EnableOVNIPSec *bool `json:"enableOVNIPSec,omitempty"`
+	// +kubebuilder:default:=false
+	EnableANP *bool `json:"enableANP,omitempty"`
+	// +kubebuilder:default:=false
+	SetVLANTxOff *bool `json:"setVLANTxOff,omitempty"`
 	// +kubebuilder:default:=3
 	// +kubebuilder:validation:Minimum=1
 	OVSDBConTimeout int `json:"OVSDBConTimeout,omitempty"`
@@ -206,7 +226,7 @@ type ComponentSpec struct {
 	// +kubebuilder:validation:Minimum=1
 	OVSDBInactivityTimeout int `json:"OVSDBInactivityTimeout,omitempty"`
 	// +kubebuilder:default:=true
-	EnableLiveMigrationOptimize bool `json:"enableLiveMigrationOptimize,omitempty"`
+	EnableLiveMigrationOptimize *bool `json:"enableLiveMigrationOptimize,omitempty"`
 }
 
 type NetworkStackSpec struct {
@@ -237,7 +257,7 @@ type PerformanceSpec struct {
 }
 
 type DebugSpec struct {
-	EnableMirror bool `json:"enableMirror,omitempty"`
+	EnableMirror *bool `json:"enableMirror,omitempty"`
 	// +kubebuilder:default:="mirror0"
 	MirrorInterface string `json:"mirrorInterface,omitempty"`
 }
@@ -253,7 +273,7 @@ type CNIConfSpec struct {
 	CNIConfFile string `json:"cniConfFile,omitempty"`
 	// +kubebuilder:default:="/usr/local/bin"
 	LocalBinDir      string `json:"localBinDir,omitempty"`
-	MountLocalBinDir bool   `json:"mountLocalBinDir,omitempty"`
+	MountLocalBinDir *bool  `json:"mountLocalBinDir,omitempty"`
 }
 type KubeletConfigSpec struct {
 	// +kubebuilder:default:="/var/lib/kubelet"

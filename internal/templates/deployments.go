@@ -46,7 +46,7 @@ spec:
       initContainers:
         - name: hostpath-init
           image: {{ .Values.global.registry.address }}/{{ .Values.global.images.kubeovn.repository }}:{{ .Values.global.images.kubeovn.tag }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           command:
             - sh
             - -c
@@ -68,7 +68,7 @@ spec:
       containers:
         - name: ovn-central
           image: {{ .Values.global.registry.address }}/{{ .Values.global.images.kubeovn.repository }}:{{ .Values.global.images.kubeovn.tag }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           command: 
           - bash
           - /kube-ovn/start-db.sh
@@ -81,7 +81,7 @@ spec:
                 - SYS_NICE
           env:
             - name: ENABLE_SSL
-              value: "{{ .Values.networking.ENABLE_SSL }}"
+              value: "{{ .Values.networking.enableSSL }}"
             - name: NODE_IPS
               value: "{{ .Values.MASTER_NODES | default (include "kubeovn.nodeIPs" .) }}"
             - name: POD_IP
@@ -101,17 +101,17 @@ spec:
                 fieldRef:
                   fieldPath: status.podIPs
             - name: ENABLE_BIND_LOCAL_IP
-              value: "{{- .Values.components.ENABLE_BIND_LOCAL_IP }}"
+              value: "{{- .Values.components.enableBindLocalIP }}"
             - name: PROBE_INTERVAL
-              value: "{{ .Values.networking.PROBE_INTERVAL }}"
+              value: "{{ .Values.networking.probeInterval }}"
             - name: OVN_NORTHD_PROBE_INTERVAL
-              value: "{{ .Values.networking.OVN_NORTHD_PROBE_INTERVAL}}"
+              value: "{{ .Values.networking.ovnNorthdProbeInterval}}"
             - name: OVN_LEADER_PROBE_INTERVAL
-              value: "{{ .Values.networking.OVN_LEADER_PROBE_INTERVAL }}"
+              value: "{{ .Values.networking.ovnLeaderProbeInterval }}"
             - name: OVN_NORTHD_N_THREADS
-              value: "{{ .Values.networking.OVN_NORTHD_N_THREADS }}"
+              value: "{{ .Values.networking.ovnNorthdNThreads }}"
             - name: ENABLE_COMPACT
-              value: "{{ .Values.networking.ENABLE_COMPACT }}"
+              value: "{{ .Values.networking.enableCompact }}"
             - name: OVN_VERSION_COMPATIBILITY
               value: '{{ include "kubeovn.ovn.versionCompatibility" . }}'
           resources:
@@ -151,7 +151,7 @@ spec:
             timeoutSeconds: 45
       nodeSelector:
         kubernetes.io/os: "linux"
-        {{- with splitList "=" .Values.MASTER_NODES_LABEL }}
+        {{- with splitList "=" .Values.masterNodesLabel }}
         {{ index . 0 }}: "{{ if eq (len .) 2 }}{{ index . 1 }}{{ end }}"
         {{- end }}
       volumes:
@@ -160,10 +160,10 @@ spec:
             path: /run/ovn
         - name: host-config-ovn
           hostPath:
-            path: {{ .Values.OVN_DIR }}
+            path: {{ .Values.ovnDir }}
         - name: host-log-ovn
           hostPath:
-            path: {{ .Values.log_conf.LOG_DIR }}/ovn
+            path: {{ .Values.logConfig.logDir }}/ovn
         - name: localtime
           hostPath:
             path: /etc/localtime
@@ -224,7 +224,7 @@ spec:
       initContainers:
         - name: hostpath-init
           image: {{ .Values.global.registry.address }}/{{ .Values.global.images.kubeovn.repository }}:{{ .Values.global.images.kubeovn.tag }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           command:
             - sh
             - -c
@@ -242,35 +242,35 @@ spec:
       containers:
         - name: kube-ovn-controller
           image: {{ .Values.global.registry.address }}/{{ .Values.global.images.kubeovn.repository }}:{{ .Values.global.images.kubeovn.tag }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           args:
           - /kube-ovn/start-controller.sh
-          - --default-ls={{ .Values.networking.DEFAULT_SUBNET }}
+          - --default-ls={{ .Values.networking.defaultSubnet }}
           - --default-cidr=
-          {{- if eq .Values.networking.NET_STACK "dual_stack" -}}
-          {{ .Values.dual_stack.POD_CIDR }}
-          {{- else if eq .Values.networking.NET_STACK "ipv4" -}}
+          {{- if eq .Values.networking.netStack "dual_stack" -}}
+          {{ .Values.dualStack.POD_CIDR }}
+          {{- else if eq .Values.networking.netStack "ipv4" -}}
           {{ .Values.ipv4.POD_CIDR }}
-          {{- else if eq .Values.networking.NET_STACK "ipv6" -}}
+          {{- else if eq .Values.networking.netStack "ipv6" -}}
           {{ .Values.ipv6.POD_CIDR }}
           {{- end }}
           - --default-gateway=
-          {{- if eq .Values.networking.NET_STACK "dual_stack" -}}
-          {{ .Values.dual_stack.POD_GATEWAY }}
-          {{- else if eq .Values.networking.NET_STACK "ipv4" -}}
+          {{- if eq .Values.networking.netStack "dual_stack" -}}
+          {{ .Values.dualStack.POD_GATEWAY }}
+          {{- else if eq .Values.networking.netStack "ipv4" -}}
           {{ .Values.ipv4.POD_GATEWAY }}
-          {{- else if eq .Values.networking.NET_STACK "ipv6" -}}
+          {{- else if eq .Values.networking.netStack "ipv6" -}}
           {{ .Values.ipv6.POD_GATEWAY }}
           {{- end }}
-          - --default-gateway-check={{- .Values.components.CHECK_GATEWAY }}
-          - --default-logical-gateway={{- .Values.components.LOGICAL_GATEWAY }}
-          - --default-u2o-interconnection={{- .Values.components.U2O_INTERCONNECTION }}
-          - --default-exclude-ips={{- .Values.networking.EXCLUDE_IPS }}
-          - --cluster-router={{ .Values.networking.DEFAULT_VPC }}
-          - --node-switch={{ .Values.networking.NODE_SUBNET }}
+          - --default-gateway-check={{- .Values.components.checkGateway }}
+          - --default-logical-gateway={{- .Values.components.logicalGateway }}
+          - --default-u2o-interconnection={{- .Values.components.u2oInterconnection }}
+          - --default-exclude-ips={{- .Values.networking.excludeIPS }}
+          - --cluster-router={{ .Values.networking.defaultVPC }}
+          - --node-switch={{ .Values.networking.nodeSubnet }}
           - --node-switch-cidr=
           {{- if eq .Values.networking.NET_STACK "dual_stack" -}}
-          {{ .Values.dual_stack.JOIN_CIDR }}
+          {{ .Values.dualStack.JOIN_CIDR }}
           {{- else if eq .Values.networking.NET_STACK "ipv4" -}}
           {{ .Values.ipv4.JOIN_CIDR }}
           {{- else if eq .Values.networking.NET_STACK "ipv6" -}}
@@ -278,41 +278,41 @@ spec:
           {{- end }}
           - --service-cluster-ip-range=
           {{- if eq .Values.networking.NET_STACK "dual_stack" -}}
-          {{ .Values.dual_stack.SVC_CIDR }}
+          {{ .Values.dualStack.SVC_CIDR }}
           {{- else if eq .Values.networking.NET_STACK "ipv4" -}}
           {{ .Values.ipv4.SVC_CIDR }}
           {{- else if eq .Values.networking.NET_STACK "ipv6" -}}
           {{ .Values.ipv6.SVC_CIDR }}
           {{- end }}
-          - --network-type={{- .Values.networking.NETWORK_TYPE }}
-          - --default-provider-name={{ .Values.networking.vlan.PROVIDER_NAME }}
-          - --default-interface-name={{- .Values.networking.vlan.VLAN_INTERFACE_NAME }}
-          - --default-exchange-link-name={{- .Values.networking.EXCHANGE_LINK_NAME }}
-          - --default-vlan-name={{- .Values.networking.vlan.VLAN_NAME }}
-          - --default-vlan-id={{- .Values.networking.vlan.VLAN_ID }}
-          - --ls-dnat-mod-dl-dst={{- .Values.components.LS_DNAT_MOD_DL_DST }}
-          - --ls-ct-skip-dst-lport-ips={{- .Values.components.LS_CT_SKIP_DST_LPORT_IPS }}
-          - --pod-nic-type={{- .Values.networking.POD_NIC_TYPE }}
-          - --enable-lb={{- .Values.components.ENABLE_LB }}
-          - --enable-np={{- .Values.components.ENABLE_NP }}
-          - --enable-eip-snat={{- .Values.networking.ENABLE_EIP_SNAT }}
-          - --enable-external-vpc={{- .Values.components.ENABLE_EXTERNAL_VPC }}
-          - --enable-ecmp={{- .Values.networking.ENABLE_ECMP }}
+          - --network-type={{- .Values.networking.networkType }}
+          - --default-provider-name={{ .Values.networking.vlan.providerName }}
+          - --default-interface-name={{- .Values.networking.vlan.vlanInterface }}
+          - --default-exchange-link-name={{- .Values.networking.exchangeLinkName }}
+          - --default-vlan-name={{- .Values.networking.vlan.vlanName }}
+          - --default-vlan-id={{- .Values.networking.vlan.vlanId }}
+          - --ls-dnat-mod-dl-dst={{- .Values.components.lsDnatModDlDst }}
+          - --ls-ct-skip-dst-lport-ips={{- .Values.components.lsCtSkipOstLportIPS }}
+          - --pod-nic-type={{- .Values.networking.podNicType }}
+          - --enable-lb={{- .Values.components.enableLB }}
+          - --enable-np={{- .Values.components.enableNP }}
+          - --enable-eip-snat={{- .Values.networking.enableEIPSNAT }}
+          - --enable-external-vpc={{- .Values.components.enableExternalVPC }}
+          - --enable-ecmp={{- .Values.networking.enableECMP }}
           - --logtostderr=false
           - --alsologtostderr=true
-          - --gc-interval={{- .Values.performance.GC_INTERVAL }}
-          - --inspect-interval={{- .Values.performance.INSPECT_INTERVAL }}
+          - --gc-interval={{- .Values.performance.gcInterval }}
+          - --inspect-interval={{- .Values.performance.inspectInterval }}
           - --log_file=/var/log/kube-ovn/kube-ovn-controller.log
           - --log_file_max_size=200
-          - --enable-lb-svc={{- .Values.components.ENABLE_LB_SVC }}
-          - --keep-vm-ip={{- .Values.components.ENABLE_KEEP_VM_IP }}
-          - --enable-metrics={{- .Values.networking.ENABLE_METRICS }}
-          - --node-local-dns-ip={{- .Values.networking.NODE_LOCAL_DNS_IP }}
-          - --secure-serving={{- .Values.components.SECURE_SERVING }}
-          - --enable-ovn-ipsec={{- .Values.components.ENABLE_OVN_IPSEC }}
-          - --enable-anp={{- .Values.components.ENABLE_ANP }}
-          - --ovsdb-con-timeout={{- .Values.components.OVSDB_CON_TIMEOUT }}
-          - --ovsdb-inactivity-timeout={{- .Values.components.OVSDB_INACTIVITY_TIMEOUT }}
+          - --enable-lb-svc={{- .Values.components.enableLBSVC }}
+          - --keep-vm-ip={{- .Values.components.enableKeepVMIP }}
+          - --enable-metrics={{- .Values.networking.enableMetrics }}
+          - --node-local-dns-ip={{- .Values.networking.nodeLocalDNSIPS }}
+          - --secure-serving={{- .Values.components.secureServing }}
+          - --enable-ovn-ipsec={{- .Values.components.enableOVNIPSec }}
+          - --enable-anp={{- .Values.components.enableANP }}
+          - --ovsdb-con-timeout={{- .Values.components.OVSDBConTimeout }}
+          - --ovsdb-inactivity-timeout={{- .Values.components.OVSDBInactivityTimeout }}
           securityContext:
             runAsUser: {{ include "kubeovn.runAsUser" . }}
             privileged: false
@@ -322,7 +322,7 @@ spec:
                 - NET_RAW
           env:
             - name: ENABLE_SSL
-              value: "{{ .Values.networking.ENABLE_SSL }}"
+              value: "{{ .Values.networking.enableSSL }}"
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -350,7 +350,7 @@ spec:
                 fieldRef:
                   fieldPath: status.podIPs
             - name: ENABLE_BIND_LOCAL_IP
-              value: "{{- .Values.components.ENABLE_BIND_LOCAL_IP }}"
+              value: "{{- .Values.components.enableBindLocalIP }}"
           volumeMounts:
             - mountPath: /etc/localtime
               name: localtime
@@ -366,14 +366,14 @@ spec:
             httpGet:
               port: 10660
               path: /readyz
-              scheme: '{{ ternary "HTTPS" "HTTP" .Values.components.SECURE_SERVING }}'
+              scheme: '{{ ternary "HTTPS" "HTTP" .Values.components.secureServing }}'
             periodSeconds: 3
             timeoutSeconds: 5
           livenessProbe:
             httpGet:
               port: 10660
               path: /livez
-              scheme: '{{ ternary "HTTPS" "HTTP" .Values.components.SECURE_SERVING }}'
+              scheme: '{{ ternary "HTTPS" "HTTP" .Values.components.secureServing }}'
             initialDelaySeconds: 300
             periodSeconds: 7
             failureThreshold: 5
@@ -402,7 +402,7 @@ spec:
             optional: true
             secretName: kube-ovn-tls`
 
-	ovn_ic_controller_deployment = `{{- if .Values.components.ENABLE_IC }}
+	ovn_ic_controller_deployment = `{{- if .Values.components.enableIC }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
@@ -448,7 +448,7 @@ spec:
       initContainers:
         - name: hostpath-init
           image: {{ .Values.global.registry.address }}/{{ .Values.global.images.kubeovn.repository }}:{{ .Values.global.images.kubeovn.tag }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           command:
             - sh
             - -c
@@ -470,7 +470,7 @@ spec:
       containers:
         - name: ovn-ic-controller
           image: {{ .Values.global.registry.address }}/{{ .Values.global.images.kubeovn.repository }}:{{ .Values.global.images.kubeovn.tag }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           command: ["/kube-ovn/start-ic-controller.sh"]
           args:
           - --log_file=/var/log/kube-ovn/kube-ovn-ic-controller.log
@@ -486,7 +486,7 @@ spec:
                 - SYS_NICE
           env:
             - name: ENABLE_SSL
-              value: "{{ .Values.networking.ENABLE_SSL }}"
+              value: "{{ .Values.networking.enableSSL }}"
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -576,7 +576,7 @@ spec:
       initContainers:
         - name: hostpath-init
           image: {{ .Values.global.registry.address }}/{{ .Values.global.images.kubeovn.repository }}:{{ .Values.global.images.kubeovn.tag }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           command:
             - sh
             - -c
@@ -594,15 +594,15 @@ spec:
       containers:
         - name: kube-ovn-monitor
           image: {{ .Values.global.registry.address }}/{{ .Values.global.images.kubeovn.repository }}:{{ .Values.global.images.kubeovn.tag }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           command: ["/kube-ovn/start-ovn-monitor.sh"]
           args:
-          - --secure-serving={{- .Values.components.SECURE_SERVING }}
+          - --secure-serving={{- .Values.components.secureServing }}
           - --log_file=/var/log/kube-ovn/kube-ovn-monitor.log
           - --logtostderr=false
           - --alsologtostderr=true
           - --log_file_max_size=200
-          - --enable-metrics={{- .Values.networking.ENABLE_METRICS }}
+          - --enable-metrics={{- .Values.networking.enableMetrics }}
           securityContext:
             runAsUser: {{ include "kubeovn.runAsUser" . }}
             privileged: false
@@ -611,7 +611,7 @@ spec:
                 - NET_BIND_SERVICE
           env:
             - name: ENABLE_SSL
-              value: "{{ .Values.networking.ENABLE_SSL }}"
+              value: "{{ .Values.networking.enableSSL }}"
             - name: KUBE_NODE_NAME
               valueFrom:
                 fieldRef:
@@ -633,7 +633,7 @@ spec:
                 fieldRef:
                   fieldPath: status.podIPs
             - name: ENABLE_BIND_LOCAL_IP
-              value: "{{- .Values.components.ENABLE_BIND_LOCAL_IP }}"
+              value: "{{- .Values.components.enableBindLocalIP }}"
           resources:
             requests:
               cpu: {{ index .Values "kube-ovn-monitor" "requests" "cpu" }}
@@ -664,7 +664,7 @@ spec:
             httpGet:
               port: 10661
               path: /livez
-              scheme: '{{ ternary "HTTPS" "HTTP" .Values.components.SECURE_SERVING }}'
+              scheme: '{{ ternary "HTTPS" "HTTP" .Values.components.secureServing }}'
             timeoutSeconds: 5
           readinessProbe:
             failureThreshold: 3
@@ -674,11 +674,11 @@ spec:
             httpGet:
               port: 10661
               path: /readyz
-              scheme: '{{ ternary "HTTPS" "HTTP" .Values.components.SECURE_SERVING }}'
+              scheme: '{{ ternary "HTTPS" "HTTP" .Values.components.secureServing }}'
             timeoutSeconds: 5
       nodeSelector:
         kubernetes.io/os: "linux"
-        {{- with splitList "=" .Values.MASTER_NODES_LABEL }}
+        {{- with splitList "=" .Values.masterNodesLabel }}
         {{ index . 0 }}: "{{ if eq (len .) 2 }}{{ index . 1 }}{{ end }}"
         {{- end }}
       volumes:
@@ -687,10 +687,10 @@ spec:
             path: /run/ovn
         - name: host-config-ovn
           hostPath:
-            path: {{ .Values.OVN_DIR }}
+            path: {{ .Values.ovnDir }}
         - name: host-log-ovn
           hostPath:
-            path: {{ .Values.log_conf.LOG_DIR }}/ovn
+            path: {{ .Values.logConfig.logDir }}/ovn
         - name: localtime
           hostPath:
             path: /etc/localtime
@@ -700,7 +700,8 @@ spec:
             secretName: kube-ovn-tls
         - name: kube-ovn-log
           hostPath:
-            path: {{ .Values.log_conf.LOG_DIR }}/kube-ovn`
+          path: {{ .Values.logConfig.logDir }}/kube-ovn
+`
 
 	DeploymentList = []string{ovn_central_deployment, kube_ovn_controller_deployment, ovn_ic_controller_deployment, kube_ovn_monitor_deployment}
 )

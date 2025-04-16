@@ -75,6 +75,7 @@ spec:
                     default: true
                     type: boolean
                   enableANP:
+                    default: false
                     type: boolean
                   enableBindLocalIP:
                     default: true
@@ -83,6 +84,7 @@ spec:
                     default: true
                     type: boolean
                   enableIC:
+                    default: false
                     type: boolean
                   enableKeepVMIP:
                     default: true
@@ -91,6 +93,7 @@ spec:
                     default: true
                     type: boolean
                   enableLBSVC:
+                    default: false
                     type: boolean
                   enableLiveMigrationOptimize:
                     default: true
@@ -102,12 +105,16 @@ spec:
                     default: true
                     type: boolean
                   enableOVNIPSec:
+                    default: false
                     type: boolean
                   enableTProxy:
+                    default: false
                     type: boolean
                   hardwareOffload:
+                    default: false
                     type: boolean
                   logicalGateway:
+                    default: false
                     type: boolean
                   lsCtSkipOstLportIPS:
                     default: true
@@ -115,11 +122,14 @@ spec:
                   lsDnatModDlDst:
                     default: true
                     type: boolean
-                  secureService:
+                  secureServing:
+                    default: false
                     type: boolean
                   setVLANTxOff:
+                    default: false
                     type: boolean
                   u2oInterconnection:
+                    default: false
                     type: boolean
                 type: object
               debug:
@@ -142,7 +152,7 @@ spec:
                 default: 1000m
                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                 x-kubernetes-int-or-string: true
-              dpdkMemory:
+              dpdkMEMORY:
                 anyOf:
                 - type: integer
                 - type: string
@@ -152,7 +162,7 @@ spec:
               dpdkVersion:
                 default: "19.11"
                 type: string
-              dualStackSpec:
+              dualStack:
                 default:
                   joinCIDR: 100.64.0.0/16,fd00:100:64::/112
                   pingerExternalAddress: 1.1.1.1,2606:4700:4700::1111
@@ -182,16 +192,9 @@ spec:
                 type: object
               global:
                 properties:
-                  registry:
+                  images:
                     properties:
-                      address:
-                        default: docker.io/kubeovn
-                        type: string
-                      imagePullSecrets:
-                        items:
-                          type: string
-                        type: array
-                      images:
+                      kubeovn:
                         properties:
                           dpdkRepository:
                             default: kube-ovn-dpdk
@@ -203,6 +206,7 @@ spec:
                             default: true
                             type: boolean
                           tag:
+                            default: v1.14.0
                             type: string
                           thirdParty:
                             default: true
@@ -211,6 +215,16 @@ spec:
                             default: vpc-nat-gateway
                             type: string
                         type: object
+                    type: object
+                  registry:
+                    properties:
+                      address:
+                        default: docker.io/kubeovn
+                        type: string
+                      imagePullSecrets:
+                        items:
+                          type: string
+                        type: array
                     type: object
                 type: object
               hugePages:
@@ -284,7 +298,7 @@ spec:
                     default: fd00:10:96::/112
                     type: string
                 type: object
-              kubeOVNCNI:
+              kubeOvnCNI:
                 default:
                   limits:
                     cpu: "1"
@@ -324,7 +338,7 @@ spec:
                         x-kubernetes-int-or-string: true
                     type: object
                 type: object
-              kubeOVNController:
+              kubeOvnController:
                 default:
                   limits:
                     cpu: "1"
@@ -364,7 +378,7 @@ spec:
                         x-kubernetes-int-or-string: true
                     type: object
                 type: object
-              kubeOVNMonitor:
+              kubeOvnMonitor:
                 default:
                   limits:
                     cpu: 200m
@@ -404,7 +418,7 @@ spec:
                         x-kubernetes-int-or-string: true
                     type: object
                 type: object
-              kubeOVNPinger:
+              kubeOvnPinger:
                 default:
                   limits:
                     cpu: 200m
@@ -474,10 +488,17 @@ spec:
                     type: string
                   enableCompact:
                     type: boolean
+                  enableECMP:
+                    default: false
+                    type: boolean
                   enableEIPSNAT:
                     default: true
                     type: boolean
+                  enableMetrics:
+                    default: true
+                    type: boolean
                   enableSSL:
+                    default: false
                     type: boolean
                   exchangeLinkName:
                     type: boolean
@@ -515,7 +536,7 @@ spec:
                     default: 5000
                     minimum: 1
                     type: integer
-                  ovnRemoteOverflowInterval:
+                  ovnRemoteOpenflowInterval:
                     default: 10
                     minimum: 1
                     type: integer

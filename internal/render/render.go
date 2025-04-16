@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/Masterminds/sprig/v3"
+	"github.com/iancoleman/strcase"
 
 	ovnoperatorv1 "github.com/harvester/kubeovn-operator/api/v1"
 )
@@ -42,6 +43,8 @@ func GenerateObjects(templates []string, config *ovnoperatorv1.Configuration, ob
 		return nil, fmt.Errorf("failed to set kubeovn field in values map: %v", err)
 	}
 
+	valsObj = AlternateMapValues(valsObj)
+	fmt.Println(valsObj)
 	for _, sourceTemplate := range templates {
 		returnedObject, err := generateObject(sourceTemplate, valsObj, object, restConfig)
 		if err != nil {
@@ -56,8 +59,9 @@ func GenerateObjects(templates []string, config *ovnoperatorv1.Configuration, ob
 
 func generateObject(input string, valuesObj map[string]interface{}, object client.Object, restConfig *rest.Config) (client.Object, error) {
 	var output bytes.Buffer
-	f := sprig.FuncMap()
+	f := sprig.TxtFuncMap()
 	f["lookup"] = engine.NewLookupFunction(restConfig)
+	f["include"] = include
 	tmpl := template.Must(template.New("objects").Funcs(f).Parse(input))
 	err := tmpl.Execute(&output, valuesObj)
 	if err != nil {
@@ -67,8 +71,12 @@ func generateObject(input string, valuesObj map[string]interface{}, object clien
 	if len(output.String()) == 0 {
 		return nil, nil
 	}
+	fmt.Printf("----\n%s----\n", output.String())
 	err = yaml.Unmarshal(output.Bytes(), object)
-	return object, err
+	if err != nil {
+		return nil, err
+	}
+	return object, nil
 }
 
 // needed to assert convert ensure templates need little to no change at all
@@ -99,7 +107,7 @@ func generateIncludeValues(config *ovnoperatorv1.Configuration) map[string]inter
 	}
 
 	runAsUser := int64(65534)
-	if config.Spec.Component.EnableOVNIPSec {
+	if *config.Spec.Component.EnableOVNIPSec {
 		runAsUser = int64(0)
 	}
 
@@ -110,4 +118,30 @@ func generateIncludeValues(config *ovnoperatorv1.Configuration) map[string]inter
 		"runAsUser": runAsUser,
 	}
 
+}
+
+// mimic helm include but in this case values are already pre-calculate in the
+// map when we render the values
+func include(key string, data map[string]interface{}) string {
+	// split key into fields
+
+	fields := strings.Split(key, ".")
+	val, _, _ := unstructured.NestedString(data, fields...)
+	return val
+}
+
+// AlternateMapValues attempts to add screaming snake case keys for all existing keys to ensure that some of the helm
+// templates which use the screaming snake case can be rendered correctly
+func AlternateMapValues(data map[string]interface{}) map[string]interface{} {
+	for key, value := range data {
+		switch v := value.(type) {
+		case map[string]interface{}:
+			data[strcase.ToScreamingSnake(key)] = AlternateMapValues(v)
+			data[strcase.ToKebab(key)] = AlternateMapValues(v)
+		default:
+			data[strcase.ToScreamingSnake(key)] = value
+			data[strcase.ToKebab(key)] = value
+		}
+	}
+	return data
 }

@@ -22,9 +22,6 @@ import (
 	"reflect"
 
 	"github.com/go-logr/logr"
-	kubeovniov1 "github.com/harvester/kubeovn-operator/api/v1"
-	"github.com/harvester/kubeovn-operator/internal/render"
-	"github.com/harvester/kubeovn-operator/internal/templates"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -43,6 +40,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	kubeovniov1 "github.com/harvester/kubeovn-operator/api/v1"
+	"github.com/harvester/kubeovn-operator/internal/render"
+	"github.com/harvester/kubeovn-operator/internal/templates"
 )
 
 // ConfigurationReconciler reconciles a Configuration object
@@ -143,7 +144,7 @@ func (r *ConfigurationReconciler) applyObject(ctx context.Context, config *kubeo
 	}
 
 	for objectType, objectList := range orderedObjectList {
-		r.Log.WithValues("objectType", objectType.GetObjectKind().GroupVersionKind()).Info("processing object type")
+		r.Log.WithValues("objectType", objectType).Info("processing object type")
 		// chceck if objectType is a clusterscoped object so we can defined correct ownership
 		namespaced, err := apiutil.IsObjectNamespaced(objectType, r.Scheme, r.Client.RESTMapper())
 		if err != nil {

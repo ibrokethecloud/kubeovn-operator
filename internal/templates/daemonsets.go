@@ -1,7 +1,7 @@
 package templates
 
 var (
-	ovs_ovn_dpdk_daemonset = `{{- if .Values.HYBRID_DPDK }}
+	ovs_ovn_dpdk_daemonset = `{{- if .Values.hybridDPDK }}
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
@@ -35,24 +35,24 @@ spec:
       containers:
         - name: openvswitch
           image: {{ .Values.global.registry.address }}/{{ .Values.global.images.kubeovn.repository }}:{{ .Values.global.images.kubeovn.tag }}-dpdk
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           command: ["/kube-ovn/start-ovs-dpdk-v2.sh"]
           securityContext:
             runAsUser: 0
             privileged: true
           env:
             - name: ENABLE_SSL
-              value: "{{ .Values.networking.ENABLE_SSL }}"
+              value: "{{ .Values.networking.enableSSL }}"
             - name: POD_IP
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
             - name: HW_OFFLOAD
-              value: "{{- .Values.components.HW_OFFLOAD }}"
+              value: "{{- .Values.components.hardwareOffload }}"
             - name: TUNNEL_TYPE
-              value: "{{- .Values.networking.TUNNEL_TYPE }}"
+              value: "{{- .Values.networking.tunnelType }}"
             - name: DPDK_TUNNEL_IFACE
-              value: "{{- .Values.networking.DPDK_TUNNEL_IFACE }}"
+              value: "{{- .Values.networking.dpdkTunnelInterface }}"
             - name: KUBE_NODE_NAME
               valueFrom:
                 fieldRef:
@@ -60,14 +60,14 @@ spec:
             - name: OVN_DB_IPS
               value: "{{ .Values.MASTER_NODES | default (include "kubeovn.nodeIPs" .) }}"
             - name: OVN_REMOTE_PROBE_INTERVAL
-              value: "{{ .Values.networking.OVN_REMOTE_PROBE_INTERVAL }}"
+              value: "{{ .Values.networking.ovnRemoteProbeInterval }}"
             - name: OVN_REMOTE_OPENFLOW_INTERVAL
-              value: "{{ .Values.networking.OVN_REMOTE_OPENFLOW_INTERVAL }}"
+              value: "{{ .Values.networking.ovnRemoteOpenflowInterval }}"
           volumeMounts:
             - mountPath: /opt/ovs-config
               name: host-config-ovs
             - name: shareddir
-              mountPath: {{ .Values.kubelet_conf.KUBELET_DIR }}/pods
+              mountPath: {{ .Values.kubeletConfig.kubeletDir }}/pods
             - name: hugepage
               mountPath: /dev/hugepages
             - mountPath: /lib/modules
@@ -115,7 +115,7 @@ spec:
               memory: {{ index .Values "ovs-ovn" "requests" "memory" }}
             limits:
               cpu: {{ index .Values "ovs-ovn" "limits" "cpu" }}
-              {{.Values.HUGEPAGE_SIZE_TYPE}}: {{.Values.HUGEPAGES}}
+              {{.Values.hugepageSizeType}}: {{.Values.hugePages}}
               memory: {{ index .Values "ovs-ovn" "limits" "memory" }}
       nodeSelector:
         kubernetes.io/os: "linux"
@@ -127,7 +127,7 @@ spec:
             type: DirectoryOrCreate
         - name: shareddir
           hostPath:
-            path: {{ .Values.kubelet_conf.KUBELET_DIR }}/pods
+            path: {{ .Values.kubeletConfig.kubeletDir }}/pods
             type: ''
         - name: hugepage
           emptyDir:
@@ -146,16 +146,16 @@ spec:
             path: /sys
         - name: host-config-openvswitch
           hostPath:
-            path: {{ .Values.OPENVSWITCH_DIR }}
+            path: {{ .Values.openVSwitchDir }}
         - name: host-config-ovn
           hostPath:
-            path: {{ .Values.OVN_DIR }}
+            path: {{ .Values.ovnDir }}
         - name: host-log-ovs
           hostPath:
-            path: {{ .Values.log_conf.LOG_DIR }}/openvswitch
+            path: {{ .Values.logConfig.logDir }}/openvswitch
         - name: host-log-ovn
           hostPath:
-            path: {{ .Values.log_conf.LOG_DIR }}/ovn
+            path: {{ .Values.logConfig.logDir }}/ovn
         - name: localtime
           hostPath:
             path: /etc/localtime
@@ -198,11 +198,11 @@ spec:
       initContainers:
       - name: hostpath-init
         image: {{ .Values.global.registry.address }}/{{ .Values.global.images.kubeovn.repository }}:{{ .Values.global.images.kubeovn.tag }}
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
         command:
           - sh
           - -xec
-          - {{ if not .Values.DISABLE_MODULES_MANAGEMENT -}}
+          - {{ if not .Values.disableModulesManagement -}}
             iptables -V
             {{- else -}}
             echo "nothing to do"
@@ -228,12 +228,12 @@ spec:
             mountPath: /var/log/kube-ovn
       - name: install-cni
         image: {{ .Values.global.registry.address }}/{{ .Values.global.images.kubeovn.repository }}:{{ .Values.global.images.kubeovn.tag }}
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
         command:
           - /kube-ovn/install-cni.sh
-          - --cni-conf-dir={{ .Values.cni_conf.CNI_CONF_DIR }}
-          - --cni-conf-file={{ .Values.cni_conf.CNI_CONF_FILE }}
-          - --cni-conf-name={{- .Values.cni_conf.CNI_CONFIG_PRIORITY -}}-kube-ovn.conflist
+          - --cni-conf-dir={{ .Values.cniConf.cniConfigDir }}
+          - --cni-conf-file={{ .Values.cniConf.cniConfFile }}
+          - --cni-conf-name={{- .Values.cniConf.cniConfigPriority -}}-kube-ovn.conflist
         securityContext:
           runAsUser: 0
           privileged: true
@@ -242,49 +242,49 @@ spec:
             name: cni-bin
           - mountPath: /etc/cni/net.d
             name: cni-conf
-          {{- if .Values.cni_conf.MOUNT_LOCAL_BIN_DIR }}
+          {{- if .Values.cniConf.mountLocalBinDir }}
           - mountPath: /usr/local/bin
             name: local-bin
           {{- end }}
       containers:
       - name: cni-server
         image: {{ .Values.global.registry.address }}/{{ .Values.global.images.kubeovn.repository }}:{{ .Values.global.images.kubeovn.tag }}
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
         command:
           - bash
           - /kube-ovn/start-cniserver.sh
         args:
-          - --enable-mirror={{- .Values.debug.ENABLE_MIRROR }}
-          - --mirror-iface={{- .Values.debug.MIRROR_IFACE }}
-          - --node-switch={{ .Values.networking.NODE_SUBNET }}
+          - --enable-mirror={{- .Values.debug.enableMirror }}
+          - --mirror-iface={{- .Values.debug.mirrorInterface }}
+          - --node-switch={{ .Values.networking.nodeSubnet }}
           - --encap-checksum=true
           - --service-cluster-ip-range=
-          {{- if eq .Values.networking.NET_STACK "dual_stack" -}}
+          {{- if eq .Values.networking.netStack "dual_stack" -}}
           {{ .Values.dual_stack.SVC_CIDR }}
-          {{- else if eq .Values.networking.NET_STACK "ipv4" -}}
+          {{- else if eq .Values.networking.netStack "ipv4" -}}
           {{ .Values.ipv4.SVC_CIDR }}
-          {{- else if eq .Values.networking.NET_STACK "ipv6" -}}
+          {{- else if eq .Values.networking.netStack "ipv6" -}}
           {{ .Values.ipv6.SVC_CIDR }}
           {{- end }}
-          {{- if eq .Values.networking.NETWORK_TYPE "vlan" }}
+          {{- if eq .Values.networking.networkType "vlan" }}
           - --iface=
           {{- else}}
-          - --iface={{- .Values.networking.IFACE }}
+          - --iface={{- .Values.networking.interface }}
           {{- end }}
-          - --dpdk-tunnel-iface={{- .Values.networking.DPDK_TUNNEL_IFACE }}
-          - --network-type={{- .Values.networking.TUNNEL_TYPE }}
-          - --default-interface-name={{- .Values.networking.vlan.VLAN_INTERFACE_NAME }}
+          - --dpdk-tunnel-iface={{- .Values.networking.dpdkTunnelInterface }}
+          - --network-type={{- .Values.networking.tunnelType }}
+          - --default-interface-name={{- .Values.networking.vlan.vlanInterface }}
           - --logtostderr=false
           - --alsologtostderr=true
           - --log_file=/var/log/kube-ovn/kube-ovn-cni.log
           - --log_file_max_size=200
-          - --enable-metrics={{- .Values.networking.ENABLE_METRICS }}
-          - --kubelet-dir={{ .Values.kubelet_conf.KUBELET_DIR }}
-          - --enable-tproxy={{ .Values.components.ENABLE_TPROXY }}
-          - --ovs-vsctl-concurrency={{ .Values.performance.OVS_VSCTL_CONCURRENCY }}
-          - --secure-serving={{- .Values.components.SECURE_SERVING }}
-          - --enable-ovn-ipsec={{- .Values.components.ENABLE_OVN_IPSEC }}
-          - --set-vxlan-tx-off={{- .Values.components.SET_VXLAN_TX_OFF }}
+          - --enable-metrics={{- .Values.networking.enableMetrics }}
+          - --kubelet-dir={{ .Values.kubeletConfig.kubeletDir }}
+          - --enable-tproxy={{ .Values.components.enableTProxy }}
+          - --ovs-vsctl-concurrency={{ .Values.performance.ovsVSCtlConcurrency }}
+          - --secure-serving={{- .Values.components.secureServing }}
+          - --enable-ovn-ipsec={{- .Values.components.enableOVNIPSec }}
+          - --set-vxlan-tx-off={{- .Values.components.setVLANTxOff }}
         securityContext:
           runAsUser: 0
           privileged: false
@@ -295,13 +295,13 @@ spec:
               - NET_RAW
               - SYS_ADMIN
               - SYS_PTRACE
-              {{- if not .Values.DISABLE_MODULES_MANAGEMENT }}
+              {{- if not .Values.disableModulesManagement }}
               - SYS_MODULE
               {{- end }}
               - SYS_NICE
         env:
           - name: ENABLE_SSL
-            value: "{{ .Values.networking.ENABLE_SSL }}"
+            value: "{{ .Values.networking.enableSSL }}"
           - name: POD_IP
             valueFrom:
               fieldRef:
@@ -323,7 +323,7 @@ spec:
               fieldRef:
                 fieldPath: status.podIPs
           - name: ENABLE_BIND_LOCAL_IP
-            value: "{{- .Values.components.ENABLE_BIND_LOCAL_IP }}"
+            value: "{{- .Values.components.enableBindLocalIP }}"
           - name: DBUS_SYSTEM_BUS_ADDRESS
             value: "unix:path=/host/var/run/dbus/system_bus_socket"
         volumeMounts:
@@ -336,7 +336,7 @@ spec:
             name: xtables-lock
             readOnly: false
           - name: shared-dir
-            mountPath: {{ .Values.kubelet_conf.KUBELET_DIR }}/pods
+            mountPath: {{ .Values.kubeletConfig.kubeletDir }}/pods
           - mountPath: /etc/openvswitch
             name: systemid
             readOnly: true
@@ -360,7 +360,7 @@ spec:
           - mountPath: /etc/localtime
             name: localtime
             readOnly: true
-        {{- if .Values.components.ENABLE_OVN_IPSEC }}
+        {{- if .Values.components.enableOVNIPSec }}
           - mountPath: /etc/ovs_ipsec_keys
             name: ovs-ipsec-keys
         {{- end }}
@@ -371,7 +371,7 @@ spec:
           httpGet:
             port: 10665
             path: /readyz
-            scheme: '{{ ternary "HTTPS" "HTTP" .Values.components.SECURE_SERVING }}'
+            scheme: '{{ ternary "HTTPS" "HTTP" .Values.components.secureServing }}'
           timeoutSeconds: 5
         livenessProbe:
           failureThreshold: 3
@@ -381,7 +381,7 @@ spec:
           httpGet:
             port: 10665
             path: /livez
-            scheme: '{{ ternary "HTTPS" "HTTP" .Values.components.SECURE_SERVING }}'
+            scheme: '{{ ternary "HTTPS" "HTTP" .Values.components.secureServing }}'
           timeoutSeconds: 5
         resources:
           requests:
@@ -404,10 +404,10 @@ spec:
             type: FileOrCreate
         - name: shared-dir
           hostPath:
-            path: {{ .Values.kubelet_conf.KUBELET_DIR }}/pods
+            path: {{ .Values.kubeletConfig.kubeletDir }}/pods
         - name: systemid
           hostPath:
-            path: {{ .Values.OPENVSWITCH_DIR }}
+            path: {{ .Values.openVSwitchDir }}
         - name: host-run-ovs
           hostPath:
             path: /run/openvswitch
@@ -416,10 +416,10 @@ spec:
             path: /run/ovn
         - name: cni-conf
           hostPath:
-            path: {{ .Values.cni_conf.CNI_CONF_DIR }}
+            path: {{ .Values.cniConf.cniConfigDir }}
         - name: cni-bin
           hostPath:
-            path: {{ .Values.cni_conf.CNI_BIN_DIR }}
+            path: {{ .Values.cniConf.cniBindir }}
         - name: host-ns
           hostPath:
             path: /var/run/netns
@@ -428,22 +428,22 @@ spec:
             path: /var/run/dbus
         - name: kube-ovn-log
           hostPath:
-            path: {{ .Values.log_conf.LOG_DIR }}/kube-ovn
+            path: {{ .Values.logConfig.logDir }}/kube-ovn
         - name: localtime
           hostPath:
             path: /etc/localtime
         - name: host-log-ovs
           hostPath:
-            path: {{ .Values.log_conf.LOG_DIR }}/openvswitch
+            path: {{ .Values.logConfig.logDir }}/openvswitch
         - name: host-log-ovn
           hostPath:
-            path: {{ .Values.log_conf.LOG_DIR }}/ovn
-        {{- if .Values.cni_conf.MOUNT_LOCAL_BIN_DIR }}
+            path: {{ .Values.logConfig.logDir }}/ovn
+        {{- if .Values.cniConf.mountLocalBinDir }}
         - name: local-bin
           hostPath:
-            path: {{ .Values.cni_conf.MOUNT_LOCAL_BIN_DIR }}
+            path: {{ .Values.cniConfig.mountLocalBinDir }}
         {{- end }}
-        {{- if .Values.components.ENABLE_OVN_IPSEC }}
+        {{- if .Values.components.enableOVNIPSec }}
         - name: ovs-ipsec-keys
           hostPath:
             path: /etc/origin/ovs_ipsec_keys
@@ -457,7 +457,6 @@ metadata:
   annotations:
     kubernetes.io/description: |
       This daemon set launches the openvswitch daemon.
-    chart-version: "{{ .Chart.Name }}-{{ .Chart.Version }}"
 spec:
   selector:
     matchLabels:
@@ -473,8 +472,6 @@ spec:
         app: ovs
         component: network
         type: infra
-      annotations:
-        chart-version: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     spec:
       tolerations:
         - effect: NoSchedule
@@ -489,12 +486,12 @@ spec:
       hostPID: true
       initContainers:
         - name: hostpath-init
-          {{- if .Values.DPDK }}
-          image: {{ .Values.global.registry.address }}/{{ .Values.global.images.kubeovn.dpdkRepository }}:{{ .Values.DPDK_VERSION }}-{{ .Values.global.images.kubeovn.tag }}
+          {{- if .values.dpdk }}
+          image: {{ .Values.global.registry.address }}/{{ .Values.global.images.kubeovn.dpdkRepository }}:{{ .values.dpdkVersion }}-{{ .Values.global.images.kubeovn.tag }}
           {{- else }}
           image: {{ .Values.global.registry.address }}/{{ .Values.global.images.kubeovn.repository }}:{{ .Values.global.images.kubeovn.tag }}
           {{- end }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           command:
             - sh
             - -xec
@@ -529,13 +526,13 @@ spec:
               name: host-log-ovs
       containers:
         - name: openvswitch
-          {{- if .Values.DPDK }}
-          image: {{ .Values.global.registry.address }}/{{ .Values.global.images.kubeovn.dpdkRepository }}:{{ .Values.DPDK_VERSION }}-{{ .Values.global.images.kubeovn.tag }}
+          {{- if .values.dpdk }}
+          image: {{ .Values.global.registry.address }}/{{ .Values.global.images.kubeovn.dpdkRepository }}:{{ .values.dpdkVersion }}-{{ .Values.global.images.kubeovn.tag }}
           {{- else }}
           image: {{ .Values.global.registry.address }}/{{ .Values.global.images.kubeovn.repository }}:{{ .Values.global.images.kubeovn.tag }}
           {{- end }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- if .Values.DPDK }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          {{- if .values.dpdk }}
           command: ["/kube-ovn/start-ovs-dpdk.sh"]
           {{- else }}
           command: ["/kube-ovn/start-ovs.sh"]
@@ -547,14 +544,14 @@ spec:
               add:
                 - NET_ADMIN
                 - NET_BIND_SERVICE
-                {{- if not .Values.DISABLE_MODULES_MANAGEMENT }}
+                {{- if not .Values.disableModulesManagement }}
                 - SYS_MODULE
                 {{- end }}
                 - SYS_NICE
                 - SYS_ADMIN
           env:
             - name: ENABLE_SSL
-              value: "{{ .Values.networking.ENABLE_SSL }}"
+              value: "{{ .Values.networking.enableSSL }}"
             - name: POD_IP
               valueFrom:
                 fieldRef:
@@ -568,9 +565,9 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: HW_OFFLOAD
-              value: "{{- .Values.components.HW_OFFLOAD }}"
+              value: "{{- .Values.components.hardwareOffload }}"
             - name: TUNNEL_TYPE
-              value: "{{- .Values.networking.TUNNEL_TYPE }}"
+              value: "{{- .Values.networking.tunnelType }}"
             - name: KUBE_NODE_NAME
               valueFrom:
                 fieldRef:
@@ -578,9 +575,9 @@ spec:
             - name: OVN_DB_IPS
               value: "{{ .Values.MASTER_NODES | default (include "kubeovn.nodeIPs" .) }}"
             - name: OVN_REMOTE_PROBE_INTERVAL
-              value: "{{ .Values.networking.OVN_REMOTE_PROBE_INTERVAL }}"
+              value: "{{ .Values.networking.ovnRemoteProbeInterval }}"
             - name: OVN_REMOTE_OPENFLOW_INTERVAL
-              value: "{{ .Values.networking.OVN_REMOTE_OPENFLOW_INTERVAL }}"
+              value: "{{ .Values.networking.ovnRemoteOpenFlowInterval }}"
           volumeMounts:
             - mountPath: /usr/local/sbin
               name: usr-local-sbin
@@ -605,7 +602,7 @@ spec:
             - mountPath: /var/run/containerd
               name: cruntime
               readOnly: true
-            {{- if .Values.DPDK }}
+            {{- if .values.dpdk }}
             - mountPath: /opt/ovs-config
               name: host-config-ovs
             - mountPath: /dev/hugepages
@@ -613,7 +610,7 @@ spec:
             {{- end }}
           readinessProbe:
             exec:
-              {{- if .Values.DPDK }}
+              {{- if .values.dpdk }}
               command:
                 - bash
                 - /kube-ovn/ovs-dpdk-healthcheck.sh
@@ -627,7 +624,7 @@ spec:
             timeoutSeconds: 45
           livenessProbe:
             exec:
-              {{- if .Values.DPDK }}
+              {{- if .values.dpdk }}
               command:
                 - bash
                 - /kube-ovn/ovs-dpdk-healthcheck.sh
@@ -642,17 +639,17 @@ spec:
             timeoutSeconds: 45
           resources:
             requests:
-              {{- if .Values.DPDK }}
-              cpu: {{ .Values.DPDK_CPU }}
-              memory: {{ .Values.DPDK_MEMORY }}
+              {{- if .values.dpdk }}
+              cpu: {{ .values.dpdkCPU }}
+              memory: {{ .values.dpdkMEMORY }}
               {{- else }}
               cpu: {{ index .Values "ovs-ovn" "requests" "cpu" }}
               memory: {{ index .Values "ovs-ovn" "requests" "memory" }}
               {{- end }}
             limits:
-              {{- if .Values.DPDK }}
-              cpu: {{ .Values.DPDK_CPU }}
-              memory: {{ .Values.DPDK_MEMORY }}
+              {{- if .values.dpdk }}
+              cpu: {{ .values.dpdkCPU }}
+              memory: {{ .values.dpdkMEMORY }}
               hugepages-1Gi: 1Gi
               {{- else }}
               cpu: {{ index .Values "ovs-ovn" "limits" "cpu" }}
@@ -674,13 +671,13 @@ spec:
             path: /run/ovn
         - name: host-config-openvswitch
           hostPath:
-            path: {{ .Values.OPENVSWITCH_DIR }}
+            path: {{ .Values.openVSwitchDir }}
         - name: host-log-ovs
           hostPath:
-            path: {{ .Values.log_conf.LOG_DIR }}/openvswitch
+            path: {{ .Values.logConfig.logDir }}/openvswitch
         - name: host-log-ovn
           hostPath:
-            path: {{ .Values.log_conf.LOG_DIR }}/ovn
+            path: {{ .Values.logConfig.logDir }}/ovn
         - name: localtime
           hostPath:
             path: /etc/localtime
@@ -691,7 +688,7 @@ spec:
         - hostPath:
             path: /var/run/containerd
           name: cruntime
-        {{- if .Values.DPDK }}
+        {{- if .values.dpdk }}
         - name: host-config-ovs
           hostPath:
             path: /opt/ovs-config
@@ -735,7 +732,7 @@ spec:
       initContainers:
         - name: hostpath-init
           image: {{ .Values.global.registry.address }}/{{ .Values.global.images.kubeovn.repository }}:{{ .Values.global.images.kubeovn.tag }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           command:
             - sh
             - -c
@@ -757,28 +754,28 @@ spec:
           - /kube-ovn/kube-ovn-pinger
           args:
           - --external-address=
-          {{- if eq .Values.networking.NET_STACK "dual_stack" -}}
-          {{ .Values.dual_stack.PINGER_EXTERNAL_ADDRESS }}
-          {{- else if eq .Values.networking.NET_STACK "ipv4" -}}
-          {{ .Values.ipv4.PINGER_EXTERNAL_ADDRESS }}
-          {{- else if eq .Values.networking.NET_STACK "ipv6" -}}
-          {{ .Values.ipv6.PINGER_EXTERNAL_ADDRESS }}
+          {{- if eq .Values.networking.netStack "dual_stack" -}}
+          {{ .Values.dualStack.pingerExternalAddress }}
+          {{- else if eq .Values.networking.netStack "ipv4" -}}
+          {{ .Values.ipv4.pingerExternalAddress }}
+          {{- else if eq .Values.networking.netStack "ipv6" -}}
+          {{ .Values.ipv6.pingerExternalAddress }}
           {{- end }}
           - --external-dns=
-          {{- if eq .Values.networking.NET_STACK "dual_stack" -}}
-          {{ .Values.dual_stack.PINGER_EXTERNAL_DOMAIN }}
-          {{- else if eq .Values.networking.NET_STACK "ipv4" -}}
-          {{ .Values.ipv4.PINGER_EXTERNAL_DOMAIN }}
-          {{- else if eq .Values.networking.NET_STACK "ipv6" -}}
-          {{ .Values.ipv6.PINGER_EXTERNAL_DOMAIN }}
+          {{- if eq .Values.networking.netStack "dual_stack" -}}
+          {{ .Values.dualStack.pingerExternalDomain }}
+          {{- else if eq .Values.networking.netStack "ipv4" -}}
+          {{ .Values.ipv4.pingerExternalDomain }}
+          {{- else if eq .Values.networking.netStack "ipv6" -}}
+          {{ .Values.ipv6.pingerExternalDomain }}
           {{- end }}
           - --ds-namespace={{ .Values.namespace }}
           - --logtostderr=false
           - --alsologtostderr=true
           - --log_file=/var/log/kube-ovn/kube-ovn-pinger.log
           - --log_file_max_size=200
-          - --enable-metrics={{- .Values.networking.ENABLE_METRICS }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          - --enable-metrics={{- .Values.networking.enableMetrics }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           securityContext:
             runAsUser: {{ include "kubeovn.runAsUser" . }}
             privileged: false
@@ -788,7 +785,7 @@ spec:
                 - NET_RAW
           env:
             - name: ENABLE_SSL
-              value: "{{ .Values.networking.ENABLE_SSL }}"
+              value: "{{ .Values.networking.enableSSL }}"
             - name: POD_IP
               valueFrom:
                 fieldRef:
@@ -843,16 +840,16 @@ spec:
             path: /run/ovn
         - name: host-config-openvswitch
           hostPath:
-            path: {{ .Values.OPENVSWITCH_DIR }}
+            path: {{ .Values.openVSwitchDir }}
         - name: host-log-ovs
           hostPath:
-            path: {{ .Values.log_conf.LOG_DIR }}/openvswitch
+            path: {{ .Values.logConfig.logDir }}/openvswitch
         - name: kube-ovn-log
           hostPath:
-            path: {{ .Values.log_conf.LOG_DIR }}/kube-ovn
+            path: {{ .Values.logConfig.logDir }}/kube-ovn
         - name: host-log-ovn
           hostPath:
-            path: {{ .Values.log_conf.LOG_DIR }}/ovn
+            path: {{ .Values.logConfig.logDir }}/ovn
         - name: localtime
           hostPath:
             path: /etc/localtime
