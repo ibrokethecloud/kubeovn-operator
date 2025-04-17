@@ -19,42 +19,21 @@ package controller
 import (
 	"context"
 	"fmt"
+	"os"
 
+	kubeovniov1 "github.com/harvester/kubeovn-operator/api/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-
-	kubeovniov1 "github.com/harvester/kubeovn-operator/api/v1"
+	"sigs.k8s.io/yaml"
 )
 
 var (
-	config = &kubeovniov1.Configuration{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      kubeovniov1.DefaultConfigurationName,
-			Namespace: defaultKubeovnNamespace,
-		},
-		Spec: kubeovniov1.ConfigurationSpec{
-			MasterNodesLabel: "node-role.kubernetes.io/control-plane=true",
-			Networking: kubeovniov1.NetworkingSpec{
-				NetStack:    "ipv4",
-				NetworkType: "geneve",
-				TunnelType:  "vxlan",
-			},
-			IPv4: kubeovniov1.NetworkStackSpec{
-				PodCIDR:               "10.42.0.0/16",
-				ServiceCIDR:           "10.43.0.0/16",
-				PodGateway:            "10.42.0.1",
-				JoinCIDR:              "100.64.0.0/16",
-				PingerExternalAddress: "1.1.1.1",
-				PingerExternalDomain:  "google.com.",
-			},
-		},
-	}
-
-	typedConfig = types.NamespacedName{Name: config.Name, Namespace: config.Namespace}
+	config      = &kubeovniov1.Configuration{}
+	typedConfig = types.NamespacedName{}
 )
+
 var _ = Describe("Configuration Controller", func() {
 	Context("When reconciling a resource", func() {
 
@@ -63,23 +42,27 @@ var _ = Describe("Configuration Controller", func() {
 
 		BeforeEach(func() {
 			By("creating the custom resource for the Kind Configuration")
-			err := k8sClient.Get(ctx, typedConfig, configuration)
+			content, err := os.ReadFile("../../config/samples/kubeovn.io_v1_configuration.yaml")
+			Expect(err).ShouldNot(HaveOccurred())
+			err = yaml.Unmarshal(content, config)
+			Expect(err).Should(BeNil())
+			typedConfig = types.NamespacedName{Name: config.GetName(), Namespace: config.GetNamespace()}
+			err = k8sClient.Get(ctx, typedConfig, configuration)
 			if err != nil && errors.IsNotFound(err) {
 				Expect(k8sClient.Create(ctx, config)).To(Succeed())
 			}
 		})
 
-		/*AfterEach(func() {
+		AfterEach(func() {
 			resource := &kubeovniov1.Configuration{}
 			err := k8sClient.Get(ctx, typedConfig, resource)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Cleanup the specific resource instance Configuration")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
-		})*/
+		})
 
 		It("reconcile configuration object", func() {
-
 			By("checking baseline conditions have been set", func() {
 				Eventually(func() error {
 					resource := &kubeovniov1.Configuration{}
@@ -109,6 +92,35 @@ var _ = Describe("Configuration Controller", func() {
 					return nil
 				}, "30s", "5s").Should(BeNil())
 			})
+
+			By("checking status has been reconcilled to deployed", func() {
+				Eventually(func() error {
+					resource := &kubeovniov1.Configuration{}
+					err := k8sClient.Get(ctx, typedConfig, resource)
+					if err != nil {
+						return err
+					}
+					testSuiteLogger.WithValues("current status", resource.Status).Info("current status")
+					if resource.Status.Status != kubeovniov1.ConfigurationStatusDeployed {
+						return fmt.Errorf("expected to find configuration status to be %s but got %s", kubeovniov1.ConfigurationStatusDeployed, resource.Status.Status)
+					}
+					fmt.Println(resource.Spec)
+					return nil
+				}, "30s", "5s").Should(BeNil())
+			})
+
+			// ensure all objects defined in templates are actually present in the apiserver
+			By("expected objects have been created", func() {
+
+			})
+
+			// trigger upgrade
+
+			// validate new deployments and daemonsets contain the updated images
+
+			// delete a master node to validate cleanup
+
+			// add a new node to ensure ovn db is reconcilled
 		})
 	})
 })

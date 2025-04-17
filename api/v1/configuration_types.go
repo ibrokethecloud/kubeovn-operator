@@ -70,7 +70,7 @@ type ConfigurationSpec struct {
 	DPDKCPU resource.Quantity `json:"dpdkCPU,omitempty"`
 	// +kubebuilder:default:="2Gi"
 	DPDKMemory resource.Quantity `json:"dpdkMEMORY,omitempty"`
-	// +kubebuilder:default:={requests:{cpu:"300m",memory:"200Mi"},limits:{cpu:"3",memory:"4Gi"}}
+	// +kubebuilder:default:={requests:{},limits:{}}
 	OVNCentral ResourceSpec `json:"ovnCentral,omitempty"`
 	// +kubebuilder:default:={requests:{cpu:"200m",memory:"200Mi"},limits:{cpu:"2", memory:"1000Mi"}}
 	OVSOVN ResourceSpec `json:"ovsOVN,omitempty"`
@@ -286,8 +286,10 @@ type LogConfigSpec struct {
 }
 
 type ResourceSpec struct {
+	// +kubebuilder:default:={cpu:"200m",memory:"200Mi"}
 	Requests CPUMemSpec `json:"requests,omitempty"`
-	Limits   CPUMemSpec `json:"limits,omitempty"`
+	// +kubebuilder:default:={cpu:2, memory:"1000Mi"}
+	Limits CPUMemSpec `json:"limits,omitempty"`
 }
 
 type CPUMemSpec struct {

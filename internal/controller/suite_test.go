@@ -146,10 +146,10 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	By("tearing down the test environment")
-	/*err := envtest.UninstallCRDs(cfg, crdInstallOptions)
+	err := envtest.UninstallCRDs(cfg, crdInstallOptions)
 	Expect(err).NotTo(HaveOccurred())
-	cancel()*/
-	err := cluster.DeleteCluster(ctx)
+	cancel()
+	err = cluster.DeleteCluster(ctx)
 	Expect(err).NotTo(HaveOccurred())
 })
 

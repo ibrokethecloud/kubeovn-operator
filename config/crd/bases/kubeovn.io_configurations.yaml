@@ -308,6 +308,9 @@ spec:
                     memory: 100Mi
                 properties:
                   limits:
+                    default:
+                      cpu: 2
+                      memory: 1000Mi
                     properties:
                       cpu:
                         anyOf:
@@ -323,6 +326,9 @@ spec:
                         x-kubernetes-int-or-string: true
                     type: object
                   requests:
+                    default:
+                      cpu: 200m
+                      memory: 200Mi
                     properties:
                       cpu:
                         anyOf:
@@ -348,6 +354,9 @@ spec:
                     memory: 200Mi
                 properties:
                   limits:
+                    default:
+                      cpu: 2
+                      memory: 1000Mi
                     properties:
                       cpu:
                         anyOf:
@@ -363,6 +372,9 @@ spec:
                         x-kubernetes-int-or-string: true
                     type: object
                   requests:
+                    default:
+                      cpu: 200m
+                      memory: 200Mi
                     properties:
                       cpu:
                         anyOf:
@@ -388,6 +400,9 @@ spec:
                     memory: 200Mi
                 properties:
                   limits:
+                    default:
+                      cpu: 2
+                      memory: 1000Mi
                     properties:
                       cpu:
                         anyOf:
@@ -403,6 +418,9 @@ spec:
                         x-kubernetes-int-or-string: true
                     type: object
                   requests:
+                    default:
+                      cpu: 200m
+                      memory: 200Mi
                     properties:
                       cpu:
                         anyOf:
@@ -428,6 +446,9 @@ spec:
                     memory: 100Mi
                 properties:
                   limits:
+                    default:
+                      cpu: 2
+                      memory: 1000Mi
                     properties:
                       cpu:
                         anyOf:
@@ -443,6 +464,9 @@ spec:
                         x-kubernetes-int-or-string: true
                     type: object
                   requests:
+                    default:
+                      cpu: 200m
+                      memory: 200Mi
                     properties:
                       cpu:
                         anyOf:
@@ -581,14 +605,13 @@ spec:
                 type: string
               ovnCentral:
                 default:
-                  limits:
-                    cpu: "3"
-                    memory: 4Gi
-                  requests:
-                    cpu: 300m
-                    memory: 200Mi
+                  limits: {}
+                  requests: {}
                 properties:
                   limits:
+                    default:
+                      cpu: 2
+                      memory: 1000Mi
                     properties:
                       cpu:
                         anyOf:
@@ -604,6 +627,9 @@ spec:
                         x-kubernetes-int-or-string: true
                     type: object
                   requests:
+                    default:
+                      cpu: 200m
+                      memory: 200Mi
                     properties:
                       cpu:
                         anyOf:
@@ -632,6 +658,9 @@ spec:
                     memory: 200Mi
                 properties:
                   limits:
+                    default:
+                      cpu: 2
+                      memory: 1000Mi
                     properties:
                       cpu:
                         anyOf:
@@ -647,6 +676,9 @@ spec:
                         x-kubernetes-int-or-string: true
                     type: object
                   requests:
+                    default:
+                      cpu: 200m
+                      memory: 200Mi
                     properties:
                       cpu:
                         anyOf:
