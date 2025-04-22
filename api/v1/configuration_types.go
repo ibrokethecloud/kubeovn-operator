@@ -132,8 +132,9 @@ type NetworkingSpec struct {
 	// +kubebuilder:default:="veth-pair"
 	PodNicType string `json:"podNicType,omitempty"`
 	// +kubebuilder:default:={}
-	Vlan             VlanSpec `json:"vlan,omitempty"`
-	ExchangeLinkName *bool    `json:"exchangeLinkName,omitempty"`
+	Vlan VlanSpec `json:"vlan,omitempty"`
+	// +kubebuilder:default:=false
+	ExchangeLinkName *bool `json:"exchangeLinkName,omitempty"`
 	// +kubebuilder:default:=true
 	EnableEIPSNAT *bool `json:"enableEIPSNAT,omitempty"`
 	// +kubebuilder:default:="ovn-default"
@@ -145,7 +146,8 @@ type NetworkingSpec struct {
 	// +kubebuilder:default:=false
 	EnableECMP *bool `json:"enableECMP,omitempty"`
 	// +kubebuilder:default:=true
-	EnableMetrics   *bool  `json:"enableMetrics,omitempty"`
+	EnableMetrics *bool `json:"enableMetrics,omitempty"`
+	// +kubebuilder:default:=" "
 	NodeLocalDNSIPS string `json:"nodeLocalDNSIPS,omitempty"`
 	// +kubebuilder:default:=180000
 	// +kubebuilder:validation:Minimum=1
@@ -164,8 +166,9 @@ type NetworkingSpec struct {
 	OvnRemoteOpenflowInterval int `json:"ovnRemoteOpenflowInterval,omitempty"`
 	// +kubebuilder:default:=1
 	// +kubebuilder:validation:Minimum=1
-	OvnNorthdNThreads int   `json:"ovnNorthdNThreads,omitempty"`
-	EnableCompact     *bool `json:"enableCompact,omitempty"`
+	OvnNorthdNThreads int `json:"ovnNorthdNThreads,omitempty"`
+	// +kubebuilder:default:=false
+	EnableCompact *bool `json:"enableCompact,omitempty"`
 }
 
 type VlanSpec struct {

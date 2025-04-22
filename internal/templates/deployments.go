@@ -248,19 +248,19 @@ spec:
           - --default-ls={{ .Values.networking.defaultSubnet }}
           - --default-cidr=
           {{- if eq .Values.networking.netStack "dual_stack" -}}
-          {{ .Values.dualStack.POD_CIDR }}
+          {{ .Values.dualStack.podCIDR }}
           {{- else if eq .Values.networking.netStack "ipv4" -}}
-          {{ .Values.ipv4.POD_CIDR }}
+          {{ .Values.ipv4.podCIDR }}
           {{- else if eq .Values.networking.netStack "ipv6" -}}
-          {{ .Values.ipv6.POD_CIDR }}
+          {{ .Values.ipv6.podCIDR }}
           {{- end }}
           - --default-gateway=
           {{- if eq .Values.networking.netStack "dual_stack" -}}
-          {{ .Values.dualStack.POD_GATEWAY }}
+          {{ .Values.dualStack.podGateway }}
           {{- else if eq .Values.networking.netStack "ipv4" -}}
-          {{ .Values.ipv4.POD_GATEWAY }}
+          {{ .Values.ipv4.podGateway }}
           {{- else if eq .Values.networking.netStack "ipv6" -}}
-          {{ .Values.ipv6.POD_GATEWAY }}
+          {{ .Values.ipv6.podGateway }}
           {{- end }}
           - --default-gateway-check={{- .Values.components.checkGateway }}
           - --default-logical-gateway={{- .Values.components.logicalGateway }}
@@ -270,19 +270,19 @@ spec:
           - --node-switch={{ .Values.networking.nodeSubnet }}
           - --node-switch-cidr=
           {{- if eq .Values.networking.netStack "dual_stack" -}}
-          {{ .Values.dualStack.JOIN_CIDR }}
+          {{ .Values.dualStack.joinCIDR }}
           {{- else if eq .Values.networking.netStack "ipv4" -}}
-          {{ .Values.ipv4.JOIN_CIDR }}
+          {{ .Values.ipv4.joinCIDR }}
           {{- else if eq .Values.networking.netStack "ipv6" -}}
-          {{ .Values.ipv6.JOIN_CIDR }}
+          {{ .Values.ipv6.joinCIDR }}
           {{- end }}
           - --service-cluster-ip-range=
           {{- if eq .Values.networking.netStack "dual_stack" -}}
-          {{ .Values.dualStack.SVC_CIDR }}
+          {{ .Values.dualStack.serviceCIDR }}
           {{- else if eq .Values.networking.netStack "ipv4" -}}
-          {{ .Values.ipv4.SVC_CIDR }}
+          {{ .Values.ipv4.serviceCIDR }}
           {{- else if eq .Values.networking.netStack "ipv6" -}}
-          {{ .Values.ipv6.SVC_CIDR }}
+          {{ .Values.ipv6.serviceCIDR }}
           {{- end }}
           - --network-type={{- .Values.networking.networkType }}
           - --default-provider-name={{ .Values.networking.vlan.providerName }}
@@ -307,7 +307,9 @@ spec:
           - --enable-lb-svc={{- .Values.components.enableLBSVC }}
           - --keep-vm-ip={{- .Values.components.enableKeepVMIP }}
           - --enable-metrics={{- .Values.networking.enableMetrics }}
+          {{ if ne .Values.networking.nodeLocalDNSIPS " " -}}
           - --node-local-dns-ip={{- .Values.networking.nodeLocalDNSIPS }}
+          {{- end }}
           - --secure-serving={{- .Values.components.secureServing }}
           - --enable-ovn-ipsec={{- .Values.components.enableOVNIPSec }}
           - --enable-anp={{- .Values.components.enableANP }}

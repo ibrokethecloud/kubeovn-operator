@@ -511,6 +511,7 @@ spec:
                   dpdkTunnelInterface:
                     type: string
                   enableCompact:
+                    default: false
                     type: boolean
                   enableECMP:
                     default: false
@@ -525,6 +526,7 @@ spec:
                     default: false
                     type: boolean
                   exchangeLinkName:
+                    default: false
                     type: boolean
                   excludeIPS:
                     type: string
@@ -544,6 +546,7 @@ spec:
                     - vlan
                     type: string
                   nodeLocalDNSIPS:
+                    default: ' '
                     type: string
                   nodeSubnet:
                     default: join

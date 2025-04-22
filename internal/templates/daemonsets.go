@@ -260,11 +260,11 @@ spec:
           - --encap-checksum=true
           - --service-cluster-ip-range=
           {{- if eq .Values.networking.netStack "dual_stack" -}}
-          {{ .Values.dual_stack.SVC_CIDR }}
+          {{ .Values.dual_stack.serviceCIDR }}
           {{- else if eq .Values.networking.netStack "ipv4" -}}
-          {{ .Values.ipv4.SVC_CIDR }}
+          {{ .Values.ipv4.serviceCIDR }}
           {{- else if eq .Values.networking.netStack "ipv6" -}}
-          {{ .Values.ipv6.SVC_CIDR }}
+          {{ .Values.ipv6.serviceCIDR }}
           {{- end }}
           {{- if eq .Values.networking.networkType "vlan" }}
           - --iface=

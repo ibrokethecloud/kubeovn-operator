@@ -124,6 +124,7 @@ spec:
     podNicType: veth-pair
     probeInterval: 180000
     tunnelType: vxlan
+    nodeLocalDNSIPS: ""
     vlan:
       providerName: provider
       vlanId: 1

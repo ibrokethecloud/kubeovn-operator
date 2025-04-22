@@ -8,7 +8,6 @@ import (
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
-	ovnoperatorv1 "github.com/harvester/kubeovn-operator/api/v1"
 	"github.com/iancoleman/strcase"
 	"helm.sh/helm/v4/pkg/engine"
 	appsv1 "k8s.io/api/apps/v1"
@@ -19,6 +18,8 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
+
+	ovnoperatorv1 "github.com/harvester/kubeovn-operator/api/v1"
 )
 
 type values struct {
@@ -43,6 +44,12 @@ func GenerateObjects(templates []string, config *ovnoperatorv1.Configuration, ob
 	err = unstructured.SetNestedField(valsObj, kubeovn, "Values", "kubeovn")
 	if err != nil {
 		return nil, fmt.Errorf("failed to set kubeovn field in values map: %v", err)
+	}
+
+	nodeCount := strings.Join(config.Status.MatchingNodeAddresses, ",")
+	err = unstructured.SetNestedField(valsObj, nodeCount, "Values", "MASTER_NODES")
+	if err != nil {
+		return nil, fmt.Errorf("failed to set field MASTER_NODES in values map: %v", err)
 	}
 
 	//valsObj = AlternateMapValues(valsObj)
@@ -117,6 +124,7 @@ func generateIncludeValues(config *ovnoperatorv1.Configuration) map[string]inter
 
 	return map[string]interface{}{
 		"nodeCount": nodeCount,
+		"nodeIPs":   nodeCount,
 		"ovs-ovn":   upgradeStratergyMap,
 		"ovn":       versionCompatibiltyMap,
 		"runAsUser": runAsUser,
