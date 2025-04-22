@@ -44,6 +44,7 @@ import (
 
 	kubeovniov1 "github.com/harvester/kubeovn-operator/api/v1"
 	"github.com/harvester/kubeovn-operator/internal/controller"
+	webhookkubeovnv1 "github.com/harvester/kubeovn-operator/internal/webhook/v1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -250,6 +251,13 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Node")
 	}
 
+	// nolint:goconst
+	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+		if err = webhookkubeovnv1.SetupConfigurationWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Configuration")
+			os.Exit(1)
+		}
+	}
 	// +kubebuilder:scaffold:builder
 
 	if metricsCertWatcher != nil {

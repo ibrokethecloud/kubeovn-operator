@@ -18,6 +18,7 @@ func Test_CreateAndVerifyCluster(t *testing.T) {
 	restConfig, err := cluster.GetKubeConfig(ctx)
 	assert.NoError(err, "expected no error during kubeconfig fetch")
 	client, err := kubernetes.NewForConfig(restConfig)
+	assert.NoError(err, "expected no error during client creation")
 	nodes, err := client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	assert.NoError(err, "expected no error while fetching nodes")
 	assert.Len(nodes.Items, 3, "expected to find 3 nodes in the test cluster")

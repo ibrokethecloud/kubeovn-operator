@@ -144,14 +144,14 @@ var _ = BeforeSuite(func() {
 	//time.Sleep(1 * time.Minute)
 })
 
-var _ = AfterSuite(func() {
+/*var _ = AfterSuite(func() {
 	By("tearing down the test environment")
 	err := envtest.UninstallCRDs(cfg, crdInstallOptions)
 	Expect(err).NotTo(HaveOccurred())
 	cancel()
 	err = cluster.DeleteCluster(ctx)
 	Expect(err).NotTo(HaveOccurred())
-})
+})*/
 
 // getFirstFoundEnvTestBinaryDir locates the first binary in the specified path.
 // ENVTEST-based tests depend on specific binaries, usually located in paths set by

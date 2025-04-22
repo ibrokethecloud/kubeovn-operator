@@ -21,17 +21,23 @@ import (
 	"fmt"
 	"os"
 
-	kubeovniov1 "github.com/harvester/kubeovn-operator/api/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/yaml"
+
+	kubeovniov1 "github.com/harvester/kubeovn-operator/api/v1"
 )
 
 var (
 	config      = &kubeovniov1.Configuration{}
 	typedConfig = types.NamespacedName{}
+)
+
+const (
+	newVersion            = "v1.14.1"
+	kubeOVNControllerName = "kube-ovn-controller"
 )
 
 var _ = Describe("Configuration Controller", func() {
@@ -53,14 +59,14 @@ var _ = Describe("Configuration Controller", func() {
 			}
 		})
 
-		AfterEach(func() {
+		/*AfterEach(func() {
 			resource := &kubeovniov1.Configuration{}
 			err := k8sClient.Get(ctx, typedConfig, resource)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Cleanup the specific resource instance Configuration")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
-		})
+		})*/
 
 		It("reconcile configuration object", func() {
 			By("checking baseline conditions have been set", func() {
@@ -104,20 +110,37 @@ var _ = Describe("Configuration Controller", func() {
 					if resource.Status.Status != kubeovniov1.ConfigurationStatusDeployed {
 						return fmt.Errorf("expected to find configuration status to be %s but got %s", kubeovniov1.ConfigurationStatusDeployed, resource.Status.Status)
 					}
-					fmt.Println(resource.Spec)
 					return nil
 				}, "30s", "5s").Should(BeNil())
 			})
 
-			// ensure all objects defined in templates are actually present in the apiserver
-			By("expected objects have been created", func() {
-
+			// trigger upgrade
+			By("check upgrade is reconcilled", func() {
+				resource := &kubeovniov1.Configuration{}
+				err := k8sClient.Get(ctx, typedConfig, resource)
+				Expect(err).ToNot(HaveOccurred())
+				resource.Spec.Global.Images.KubeOVNImage.Tag = newVersion
+				err = k8sClient.Update(ctx, resource)
+				Expect(err).ToNot(HaveOccurred())
 			})
 
-			// trigger upgrade
-
 			// validate new deployments and daemonsets contain the updated images
-
+			/*By("checking kube-ovn-controller is using the new image", func() {
+				Eventually(func() error {
+					d := &appsv1.Deployment{}
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: kubeOVNControllerName, Namespace: defaultKubeovnNamespace}, d)
+					if err != nil {
+						return err
+					}
+					// check image for new tag
+					for _, v := range d.Spec.Template.Spec.Containers {
+						if !strings.Contains(v.Image, newVersion) {
+							return fmt.Errorf("waiting for new verion %s to be available in container image", newVersion)
+						}
+					}
+					return nil
+				}, "30s", "5s").Should(BeNil())
+			})*/
 			// delete a master node to validate cleanup
 
 			// add a new node to ensure ovn db is reconcilled

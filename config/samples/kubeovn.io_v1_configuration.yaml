@@ -74,33 +74,33 @@ spec:
     podGateway: fd00:10:16::1
     serviceCIDR: fd00:10:96::/112
   kubeOvnCNI:
-    limits:
-      cpu: "0"
-      memory: "0"
     requests:
-      cpu: "0"
-      memory: "0"
+      cpu: "100m"
+      memory: "100Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"
   kubeOvnController:
-    limits:
-      cpu: "0"
-      memory: "0"
     requests:
-      cpu: "0"
-      memory: "0"
+      cpu: "200m"
+      memory: "200Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"
   kubeOvnMonitor:
-    limits:
-      cpu: "0"
-      memory: "0"
     requests:
-      cpu: "0"
-      memory: "0"
+      cpu: "200m"
+      memory: "200Mi"
+    limits:
+      cpu: "200m"
+      memory: "200Mi"
   kubeOvnPinger:
-    limits:
-      cpu: "0"
-      memory: "0"
     requests:
-      cpu: "0"
-      memory: "0"
+      cpu: "100m"
+      memory: "100Mi"
+    limits:
+      cpu: "200m"
+      memory: "400Mi"
   kubeletConfig:
     kubeletDir: /var/lib/kubelet
   logConfig:
@@ -130,12 +130,12 @@ spec:
       vlanName: ovn-vlan
   openVSwitchDir: /etc/origin/openvswitch
   ovnCentral:
-    limits:
-      cpu: "0"
-      memory: "0"
     requests:
-      cpu: "0"
-      memory: "0"
+      cpu: "300m"
+      memory: "200Mi"
+    limits:
+      cpu: "3"
+      memory: "4Gi"
   ovnDir: /etc/origin/ovn
   ovsOVN:
     limits:
