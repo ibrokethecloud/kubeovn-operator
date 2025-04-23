@@ -249,6 +249,7 @@ func main() {
 		Scheme:        mgr.GetScheme(),
 		Namespace:     namespace,
 		EventRecorder: mgr.GetEventRecorderFor("node-controller"),
+		RestConfig:    mgr.GetConfig(),
 		Log:           logf.FromContext(ctx),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Node")
