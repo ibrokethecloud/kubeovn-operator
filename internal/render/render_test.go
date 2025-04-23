@@ -9,6 +9,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	ovnoperatorv1 "github.com/harvester/kubeovn-operator/api/v1"
+	"github.com/harvester/kubeovn-operator/internal/templates"
 	sourcetemplate "github.com/harvester/kubeovn-operator/internal/templates"
 )
 
@@ -32,5 +33,14 @@ func Test_ObjectRendering(t *testing.T) {
 		for _, object := range returnedObjects {
 			assert.NotEmpty(object.GetName())
 		}
+	}
+}
+
+func Test_CleanupRendering(t *testing.T) {
+	assert := require.New(t)
+	nodeIP := "192.168.1.128"
+	for _, v := range []string{templates.CleanupNBDB, templates.CleanupSBDB} {
+		_, err := generateScript(nodeIP, v)
+		assert.NoError(err)
 	}
 }

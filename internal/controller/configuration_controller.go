@@ -222,10 +222,9 @@ func (r *ConfigurationReconciler) findMasterNodes(ctx context.Context, config *k
 
 	var nodeAddresses []string
 	for _, v := range nodeList.Items {
-		for _, address := range v.Status.Addresses {
-			if address.Type == corev1.NodeInternalIP {
-				nodeAddresses = append(nodeAddresses, address.Address)
-			}
+		address := nodeInternalIP(v)
+		if len(address) > 0 {
+			nodeAddresses = append(nodeAddresses, address)
 		}
 	}
 
@@ -298,4 +297,13 @@ func (r *ConfigurationReconciler) deleteClusterScopedReference(ctx context.Conte
 	}
 
 	return nil
+}
+
+func nodeInternalIP(node corev1.Node) string {
+	for _, address := range node.Status.Addresses {
+		if address.Type == corev1.NodeInternalIP {
+			return address.Address
+		}
+	}
+	return ""
 }

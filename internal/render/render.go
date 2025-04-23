@@ -20,6 +20,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	ovnoperatorv1 "github.com/harvester/kubeovn-operator/api/v1"
+	"github.com/harvester/kubeovn-operator/internal/templates"
 )
 
 type values struct {
@@ -185,4 +186,28 @@ func InitialiseNewObject(object client.Object) client.Object {
 		return &corev1.Service{}
 	}
 	return nil
+}
+
+func GenerateNorthBoundCleanupScript(nodeAddress string) (string, error) {
+	return generateScript(nodeAddress, templates.CleanupNBDB)
+}
+
+func GenerateSouthBoundCleanupScript(nodeAddress string) (string, error) {
+	return generateScript(nodeAddress, templates.CleanupSBDB)
+}
+
+func generateScript(nodeAddress, script string) (string, error) {
+	values := map[string]string{
+		"NodeAddress": nodeAddress,
+	}
+	tmpl, err := template.New("script").Parse(script)
+	if err != nil {
+		return "", fmt.Errorf("error parsing template %s: %v", script, err)
+	}
+	var result bytes.Buffer
+	err = tmpl.Execute(&result, values)
+	if err != nil {
+		return "", fmt.Errorf("error during template execution %s using values %v: %v", script, values, err)
+	}
+	return result.String(), nil
 }

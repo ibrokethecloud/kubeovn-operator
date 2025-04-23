@@ -51,7 +51,7 @@ import (
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
-	VERSION  = "v1.14.0"
+	Version  = "v1.14.0"
 )
 
 func init() {
@@ -92,6 +92,7 @@ func main() {
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
 	flag.StringVar(&namespace, "namespace", "", "The namespace passed via downward API to identify where to deploy and watch generated resources")
+	flag.StringVar(&Version, "version", "v1.14.0", "Version passed to kubeovn image tag in generated resources")
 	flag.BoolVar(&debug, "debug", false, "Enable debug logging")
 
 	opts := zap.Options{
@@ -237,7 +238,7 @@ func main() {
 		EventRecorder: mgr.GetEventRecorderFor("configuration-controller"),
 		Log:           logf.FromContext(ctx),
 		RestConfig:    mgr.GetConfig(),
-		Version:       VERSION,
+		Version:       Version,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Configuration")
 		os.Exit(1)

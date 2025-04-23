@@ -2,12 +2,16 @@ package controller
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -15,15 +19,21 @@ import (
 
 	"github.com/go-logr/logr"
 	kubeovniov1 "github.com/harvester/kubeovn-operator/api/v1"
+	"github.com/harvester/kubeovn-operator/internal/executor"
+	"github.com/harvester/kubeovn-operator/internal/render"
 )
 
 const (
-	KubeOVNNodeFinalizer = "nodes.kubeovn.io"
+	KubeOVNNodeFinalizer    = "nodes.kubeovn.io"
+	SBLeaderLabel           = "ovn-sb-leader=true"
+	NBLeaderLabel           = "ovn-nb-leader=true"
+	OVNCentralContainerName = "ovn-central"
 )
 
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch;create;update;patch;delete
 type NodeReconciler struct {
 	client.Client
+	RestConfig    *rest.Config
 	Scheme        *runtime.Scheme
 	EventRecorder record.EventRecorder
 	Namespace     string
@@ -58,11 +68,6 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{}, err
 	}
 
-	if !metav1.HasLabel(node.ObjectMeta, config.Spec.MasterNodesLabel) {
-		r.Log.WithValues("name", req.Name).Info("node does not match config masterNodesLabel, so ignoring")
-		return ctrl.Result{}, nil
-	}
-
 	if node.DeletionTimestamp != nil {
 		// reconcile ovn north and south databases and check if there is a condition matching
 		return r.reconcileNodeDeletion(ctx, config, node)
@@ -88,6 +93,23 @@ func fetchKubeovnConfig(ctx context.Context, client client.Client, namespace str
 // allowing node to be removed from apiserver
 func (r *NodeReconciler) reconcileNodeDeletion(ctx context.Context, config *kubeovniov1.Configuration, node *corev1.Node) (ctrl.Result, error) {
 	nodeObj := node.DeepCopy()
+
+	nodeIP := nodeInternalIP(*nodeObj)
+	if len(nodeIP) == 0 {
+		// should not be possible but lets return and ignore this node
+		r.Log.Error(errors.New("node has no internal ip so requeuing, manual cleanup of finalizer may be needed"), "node", node.GetName())
+		return ctrl.Result{}, fmt.Errorf("node has no internal ip so ignoring %s", node.GetName())
+	}
+	if metav1.HasLabel(node.ObjectMeta, config.Spec.MasterNodesLabel) {
+		r.Log.WithValues("name", node.Name).Info("node matches master node label, trigger nb/sb db cleanup")
+		if err := r.reconcileOVNCentralState(ctx, nodeIP); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	if err := r.reconcileOVSOVNState(nodeIP); err != nil {
+		return ctrl.Result{}, nil
+	}
 	// perform ovn northbound and southbound db cleanup operations
 	// remove finalizer to allow node to be cleaned up
 	if controllerutil.ContainsFinalizer(node, kubeovniov1.KubeOVNNodeFinalizer) {
@@ -95,4 +117,63 @@ func (r *NodeReconciler) reconcileNodeDeletion(ctx context.Context, config *kube
 		return ctrl.Result{}, r.Patch(ctx, node, client.MergeFrom(nodeObj))
 	}
 	return ctrl.Result{}, nil
+}
+
+// reconcileOVNCentralState attempts to perform the kubeovn cleanup procedure for ovn north and south
+// databases running on ovn-central as documented at https://kubeovn.github.io/docs/v1.12.x/en/ops/change-ovn-central-node/
+func (r *NodeReconciler) reconcileOVNCentralState(ctx context.Context, nodeIP string) error {
+	podList, err := r.podList(ctx, NBLeaderLabel)
+	if err != nil {
+		return fmt.Errorf("error generating pod list when checking for label %s: %v", NBLeaderLabel, err)
+	}
+
+	if len(podList.Items) == 0 {
+		return fmt.Errorf("expected to find atleast one leader pod, requeuing until condition is met")
+	}
+	// generate nb cleanup template
+	script, err := render.GenerateNorthBoundCleanupScript(nodeIP)
+	if err != nil {
+		return fmt.Errorf("error generating northbound cleanup script using ip %s: %v", nodeIP, err)
+	}
+
+	// initialise executor
+	pod := podList.Items[0]
+	executor, err := executor.NewRemoteCommandExecutor(ctx, r.RestConfig, &pod)
+	if err != nil {
+		return fmt.Errorf("error generating new remote command executor: %v", err)
+	}
+	// perform NB cleanup
+	result, err := executor.Run(OVNCentralContainerName, script)
+	if err != nil {
+		return fmt.Errorf("Error during northbound command execution %s: %v", string(result), err)
+	}
+	r.Log.WithValues("nodeAddress", nodeIP).Info(string(result))
+
+	// generate sb cleanup template
+	script, err = render.GenerateSouthBoundCleanupScript(nodeIP)
+	if err != nil {
+		return fmt.Errorf("error generating southbound cleanup script using ip %s: %v", nodeIP, err)
+	}
+	// perform SB cleanup
+	result, err = executor.Run(OVNCentralContainerName, script)
+	if err != nil {
+		return fmt.Errorf("Error during southbound cleanup command execution %s: %v", string(result), err)
+	}
+	r.Log.WithValues("nodeAddress", nodeIP).Info(string(result))
+	return nil
+}
+
+func (r *NodeReconciler) reconcileOVSOVNState(nodeIP string) error {
+	return nil
+}
+
+func (r *NodeReconciler) podList(ctx context.Context, label string) (*corev1.PodList, error) {
+	selector, err := labels.Parse(label)
+	if err != nil {
+		return nil, fmt.Errorf("error unable to parse label list %s: %v", label, err)
+	}
+
+	podList := &corev1.PodList{}
+	err = r.Client.List(ctx, podList, &client.ListOptions{LabelSelector: selector})
+	return podList, err
 }
