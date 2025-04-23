@@ -51,6 +51,7 @@ import (
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
+	VERSION  = "v1.14.0"
 )
 
 func init() {
@@ -94,7 +95,7 @@ func main() {
 	flag.BoolVar(&debug, "debug", false, "Enable debug logging")
 
 	opts := zap.Options{
-		Level: zapcore.ErrorLevel,
+		Level: zapcore.InfoLevel,
 	}
 
 	opts.BindFlags(flag.CommandLine)
@@ -236,6 +237,7 @@ func main() {
 		EventRecorder: mgr.GetEventRecorderFor("configuration-controller"),
 		Log:           logf.FromContext(ctx),
 		RestConfig:    mgr.GetConfig(),
+		Version:       VERSION,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Configuration")
 		os.Exit(1)

@@ -286,7 +286,9 @@ spec:
           {{- end }}
           - --network-type={{- .Values.networking.networkType }}
           - --default-provider-name={{ .Values.networking.vlan.providerName }}
+          {{ if .Values.networking.vlan.vlanInterface -}}
           - --default-interface-name={{- .Values.networking.vlan.vlanInterface }}
+          {{- end }}
           - --default-exchange-link-name={{- .Values.networking.exchangeLinkName }}
           - --default-vlan-name={{- .Values.networking.vlan.vlanName }}
           - --default-vlan-id={{- .Values.networking.vlan.vlanId }}
@@ -307,7 +309,7 @@ spec:
           - --enable-lb-svc={{- .Values.components.enableLBSVC }}
           - --keep-vm-ip={{- .Values.components.enableKeepVMIP }}
           - --enable-metrics={{- .Values.networking.enableMetrics }}
-          {{ if ne .Values.networking.nodeLocalDNSIPS " " -}}
+          {{ if .Values.networking.nodeLocalDNSIPS -}}
           - --node-local-dns-ip={{- .Values.networking.nodeLocalDNSIPS }}
           {{- end }}
           - --secure-serving={{- .Values.components.secureServing }}

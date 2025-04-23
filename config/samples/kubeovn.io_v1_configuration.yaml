@@ -51,7 +51,6 @@ spec:
         dpdkRepository: kube-ovn-dpdk
         repository: kube-ovn
         supportArm: true
-        tag: v1.14.0
         thirdParty: true
         vpcRepository: vpc-nat-gateway
     registry:

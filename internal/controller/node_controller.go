@@ -65,13 +65,13 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 	if node.DeletionTimestamp != nil {
 		// reconcile ovn north and south databases and check if there is a condition matching
-		return r.reconcileNodeDeletion(config, node)
+		return r.reconcileNodeDeletion(ctx, config, node)
 	}
 
 	// add finalizer if one does not exist and update node object
-	if !controllerutil.ContainsFinalizer(node, KubeOVNNodeFinalizer) {
-		controllerutil.AddFinalizer(node, KubeOVNNodeFinalizer)
-		return ctrl.Result{}, r.Update(ctx, node)
+	if !controllerutil.ContainsFinalizer(node, kubeovniov1.KubeOVNNodeFinalizer) {
+		controllerutil.AddFinalizer(node, kubeovniov1.KubeOVNNodeFinalizer)
+		return ctrl.Result{}, r.Patch(ctx, node, client.MergeFrom(nodeObj))
 	}
 
 	return ctrl.Result{}, nil
@@ -86,6 +86,13 @@ func fetchKubeovnConfig(ctx context.Context, client client.Client, namespace str
 
 // reconcileNodeDeletion will delete the node entry from the ovn database and remove finalizer
 // allowing node to be removed from apiserver
-func (r *NodeReconciler) reconcileNodeDeletion(config *kubeovniov1.Configuration, node *corev1.Node) (ctrl.Result, error) {
+func (r *NodeReconciler) reconcileNodeDeletion(ctx context.Context, config *kubeovniov1.Configuration, node *corev1.Node) (ctrl.Result, error) {
+	nodeObj := node.DeepCopy()
+	// perform ovn northbound and southbound db cleanup operations
+	// remove finalizer to allow node to be cleaned up
+	if controllerutil.ContainsFinalizer(node, kubeovniov1.KubeOVNNodeFinalizer) {
+		controllerutil.RemoveFinalizer(node, kubeovniov1.KubeOVNNodeFinalizer)
+		return ctrl.Result{}, r.Patch(ctx, node, client.MergeFrom(nodeObj))
+	}
 	return ctrl.Result{}, nil
 }

@@ -146,8 +146,7 @@ type NetworkingSpec struct {
 	// +kubebuilder:default:=false
 	EnableECMP *bool `json:"enableECMP,omitempty"`
 	// +kubebuilder:default:=true
-	EnableMetrics *bool `json:"enableMetrics,omitempty"`
-	// +kubebuilder:default:=" "
+	EnableMetrics   *bool  `json:"enableMetrics,omitempty"`
 	NodeLocalDNSIPS string `json:"nodeLocalDNSIPS,omitempty"`
 	// +kubebuilder:default:=180000
 	// +kubebuilder:validation:Minimum=1
@@ -353,6 +352,8 @@ const (
 	WaitingForMatchignNodesCondition = "waitingForMatchignNodes"
 	ErroredObjectsCondition          = "erroredObjects"
 	KubeOVNFakeNamespace             = "kubeovn-owner-namespace"
+	KubeOVNConfigurationFinalizer    = "finalizer.kubeovn.io/configuration"
+	KubeOVNNodeFinalizer             = "finalizer.kubeovn.io/node"
 )
 
 var (

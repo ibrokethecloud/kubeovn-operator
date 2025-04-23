@@ -52,10 +52,12 @@ var (
 	crdInstallOptions envtest.CRDInstallOptions
 	scheme            = runtime.NewScheme()
 	testSuiteLogger   = ctrl.Log.WithName("test suite")
+	cr                = &ConfigurationReconciler{}
 )
 
 const (
 	defaultKubeovnNamespace = "kube-system"
+	Version                 = "v1.14.0"
 )
 
 func TestControllers(t *testing.T) {
@@ -116,14 +118,16 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).NotTo(HaveOccurred())
 
-	err = (&ConfigurationReconciler{
+	cr = &ConfigurationReconciler{
 		Client:        mgr.GetClient(),
 		Scheme:        scheme,
 		Namespace:     defaultKubeovnNamespace,
 		EventRecorder: mgr.GetEventRecorderFor("configuration-controller"),
 		Log:           logf.FromContext(ctx),
 		RestConfig:    mgr.GetConfig(),
-	}).SetupWithManager(mgr)
+		Version:       Version,
+	}
+	err = cr.SetupWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
 	err = (&NodeReconciler{
@@ -144,14 +148,14 @@ var _ = BeforeSuite(func() {
 	//time.Sleep(1 * time.Minute)
 })
 
-/*var _ = AfterSuite(func() {
+var _ = AfterSuite(func() {
 	By("tearing down the test environment")
 	err := envtest.UninstallCRDs(cfg, crdInstallOptions)
 	Expect(err).NotTo(HaveOccurred())
 	cancel()
 	err = cluster.DeleteCluster(ctx)
 	Expect(err).NotTo(HaveOccurred())
-})*/
+})
 
 // getFirstFoundEnvTestBinaryDir locates the first binary in the specified path.
 // ENVTEST-based tests depend on specific binaries, usually located in paths set by

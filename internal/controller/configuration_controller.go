@@ -51,6 +51,7 @@ type ConfigurationReconciler struct {
 	Namespace     string
 	EventRecorder record.EventRecorder
 	Log           logr.Logger
+	Version       string
 }
 
 type reconcileFuncs func(context.Context, *kubeovniov1.Configuration) error
@@ -83,7 +84,13 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	config := configObj.DeepCopy()
 	// if deletiontimestamp is set, then no further processing is needed as we let k8s gc the associated objects
 	if config.DeletionTimestamp != nil {
-		return reconcile.Result{}, r.deleteClusterScopedReference(ctx)
+		return reconcile.Result{}, r.deleteClusterScopedReference(ctx, config)
+	}
+
+	// check and add finalizer
+	if !controllerutil.ContainsFinalizer(config, kubeovniov1.KubeOVNConfigurationFinalizer) {
+		controllerutil.AddFinalizer(config, kubeovniov1.KubeOVNConfigurationFinalizer)
+		return ctrl.Result{}, r.Client.Patch(ctx, config, client.MergeFrom(configObj))
 	}
 
 	reconcileSteps := []reconcileFuncs{r.initializeConditions, r.reconcileClusterScopedReference, r.findMasterNodes, r.checkObjects, r.applyObject}
@@ -133,7 +140,7 @@ func (r *ConfigurationReconciler) applyObject(ctx context.Context, config *kubeo
 		if err != nil {
 			return fmt.Errorf("unable to identify if objecttype %s is namedspaced: %v", objectType.GetObjectKind(), err)
 		}
-		objs, err := render.GenerateObjects(objectList, config, objectType, r.RestConfig)
+		objs, err := render.GenerateObjects(objectList, config, objectType, r.RestConfig, r.Version)
 		if err != nil {
 			return fmt.Errorf("error during object generation for type %s: %v", objectType.GetObjectKind().GroupVersionKind(), err)
 		}
@@ -160,8 +167,8 @@ func (r *ConfigurationReconciler) applyObject(ctx context.Context, config *kubeo
 
 // reconcileObject will create / update the managed objects
 func (r *ConfigurationReconciler) reconcileObject(ctx context.Context, obj client.Object) error {
-	existingObject := obj
-	err := r.Client.Get(ctx, types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, existingObject)
+	emptyObj := render.InitialiseNewObject(obj)
+	err := r.Client.Get(ctx, types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, emptyObj)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return r.Create(ctx, obj)
@@ -169,7 +176,7 @@ func (r *ConfigurationReconciler) reconcileObject(ctx context.Context, obj clien
 		return fmt.Errorf("error fetching object %s/%s: %v", obj.GetNamespace(), obj.GetName(), err)
 	}
 
-	return r.Patch(ctx, obj, client.MergeFrom(existingObject))
+	return r.Patch(ctx, obj, client.MergeFrom(emptyObj))
 }
 
 func (r *ConfigurationReconciler) filterObject(ctx context.Context, obj client.Object) []ctrl.Request {
@@ -266,7 +273,8 @@ func (r *ConfigurationReconciler) reconcileClusterScopedReference(ctx context.Co
 
 // deleteClusterScopedReference is triggered during configuration deletion
 // and triggers deletion of cluster scoped objects
-func (r *ConfigurationReconciler) deleteClusterScopedReference(ctx context.Context) error {
+func (r *ConfigurationReconciler) deleteClusterScopedReference(ctx context.Context, config *kubeovniov1.Configuration) error {
+	configObj := config.DeepCopy()
 	newNS := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: kubeovniov1.KubeOVNFakeNamespace,
@@ -280,5 +288,14 @@ func (r *ConfigurationReconciler) deleteClusterScopedReference(ctx context.Conte
 		}
 		return err
 	}
-	return r.Client.Delete(ctx, newNS)
+	if err := r.Client.Delete(ctx, newNS); err != nil {
+		return err
+	}
+
+	if controllerutil.ContainsFinalizer(config, kubeovniov1.KubeOVNConfigurationFinalizer) {
+		controllerutil.RemoveFinalizer(config, kubeovniov1.KubeOVNConfigurationFinalizer)
+		return r.Client.Patch(ctx, config, client.MergeFrom(configObj))
+	}
+
+	return nil
 }

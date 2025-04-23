@@ -20,10 +20,14 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
+
+	appsv1 "k8s.io/api/apps/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/yaml"
 
@@ -59,14 +63,23 @@ var _ = Describe("Configuration Controller", func() {
 			}
 		})
 
-		/*AfterEach(func() {
+		AfterEach(func() {
 			resource := &kubeovniov1.Configuration{}
 			err := k8sClient.Get(ctx, typedConfig, resource)
 			Expect(err).NotTo(HaveOccurred())
 
-			By("Cleanup the specific resource instance Configuration")
-			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
-		})*/
+			By("Cleanup the specific resource instance Configuration", func() {
+				Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+				Eventually(func() error {
+					err := k8sClient.Get(ctx, typedConfig, resource)
+					if apierrors.IsNotFound(err) {
+						return nil
+					}
+					return fmt.Errorf("waiting for configuration object to be gc'd")
+				}, "30s", "5s").Should(BeNil())
+			})
+
+		})
 
 		It("reconcile configuration object", func() {
 			By("checking baseline conditions have been set", func() {
@@ -115,7 +128,9 @@ var _ = Describe("Configuration Controller", func() {
 			})
 
 			// trigger upgrade
-			By("check upgrade is reconcilled", func() {
+			By("Patch Version to simulate an upgrade", func() {
+				cr.Version = newVersion
+				// patching is immaterial and is only needed to trigger reconcile of the object
 				resource := &kubeovniov1.Configuration{}
 				err := k8sClient.Get(ctx, typedConfig, resource)
 				Expect(err).ToNot(HaveOccurred())
@@ -125,7 +140,7 @@ var _ = Describe("Configuration Controller", func() {
 			})
 
 			// validate new deployments and daemonsets contain the updated images
-			/*By("checking kube-ovn-controller is using the new image", func() {
+			By("checking kube-ovn-controller is using the new image", func() {
 				Eventually(func() error {
 					d := &appsv1.Deployment{}
 					err := k8sClient.Get(ctx, types.NamespacedName{Name: kubeOVNControllerName, Namespace: defaultKubeovnNamespace}, d)
@@ -134,13 +149,14 @@ var _ = Describe("Configuration Controller", func() {
 					}
 					// check image for new tag
 					for _, v := range d.Spec.Template.Spec.Containers {
+						testSuiteLogger.Info("found image", "tag", v.Image)
 						if !strings.Contains(v.Image, newVersion) {
 							return fmt.Errorf("waiting for new verion %s to be available in container image", newVersion)
 						}
 					}
 					return nil
 				}, "30s", "5s").Should(BeNil())
-			})*/
+			})
 			// delete a master node to validate cleanup
 
 			// add a new node to ensure ovn db is reconcilled

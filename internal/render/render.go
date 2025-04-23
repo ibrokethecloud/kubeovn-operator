@@ -26,8 +26,11 @@ type values struct {
 	Values ovnoperatorv1.ConfigurationSpec `json:"Values"`
 }
 
-func GenerateObjects(templates []string, config *ovnoperatorv1.Configuration, object client.Object, restConfig *rest.Config) ([]client.Object, error) {
+func GenerateObjects(templates []string, config *ovnoperatorv1.Configuration, object client.Object, restConfig *rest.Config, version string) ([]client.Object, error) {
 	var returnedObjects []client.Object
+
+	// patch version supplied by the controller
+	config.Spec.Global.Images.KubeOVNImage.Tag = version
 
 	valsObj, err := generateMap(config)
 	if err != nil {
@@ -66,7 +69,7 @@ func GenerateObjects(templates []string, config *ovnoperatorv1.Configuration, ob
 }
 
 func generateObject(input string, valuesObj map[string]interface{}, object client.Object, restConfig *rest.Config) (client.Object, error) {
-	newObj := initialiseNewObject(object)
+	newObj := InitialiseNewObject(object)
 	if newObj == nil {
 		return nil, fmt.Errorf("could not initialise new object for type: %T", object)
 	}
@@ -158,7 +161,7 @@ func AlternateMapValues(data map[string]interface{}) map[string]interface{} {
 	return data
 }
 
-func initialiseNewObject(object client.Object) client.Object {
+func InitialiseNewObject(object client.Object) client.Object {
 	switch object.(type) {
 	case *appsv1.Deployment:
 		return &appsv1.Deployment{}

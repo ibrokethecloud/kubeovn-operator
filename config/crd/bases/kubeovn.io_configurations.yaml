@@ -546,7 +546,6 @@ spec:
                     - vlan
                     type: string
                   nodeLocalDNSIPS:
-                    default: ' '
                     type: string
                   nodeSubnet:
                     default: join

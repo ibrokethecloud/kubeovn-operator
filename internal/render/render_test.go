@@ -27,7 +27,7 @@ func Test_ObjectRendering(t *testing.T) {
 	c, err := generateConfigObject()
 	assert.NoError(err, "expected no error while generating config object")
 	for objectType, objectList := range sourcetemplate.OrderedObjectList {
-		returnedObjects, err := GenerateObjects(objectList, c, objectType, nil)
+		returnedObjects, err := GenerateObjects(objectList, c, objectType, nil, "v1.14.0")
 		assert.NoError(err, "expected no error while generating object", objectType)
 		for _, object := range returnedObjects {
 			assert.NotEmpty(object.GetName())
