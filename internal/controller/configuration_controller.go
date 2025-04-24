@@ -111,7 +111,7 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	b := ctrl.NewControllerManagedBy(mgr).
 		For(&kubeovniov1.Configuration{}).
-		Named("configuration")
+		Named("kubeovn-configuration-controller")
 	return r.AddWatches(b).Complete(r)
 }
 

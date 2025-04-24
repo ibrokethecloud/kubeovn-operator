@@ -18,6 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/go-logr/logr"
+
 	kubeovniov1 "github.com/harvester/kubeovn-operator/api/v1"
 	"github.com/harvester/kubeovn-operator/internal/executor"
 	"github.com/harvester/kubeovn-operator/internal/render"
@@ -41,7 +42,9 @@ type NodeReconciler struct {
 }
 
 func (r *NodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return nil
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&corev1.Node{}).
+		Named("kubeovn-node-controller").Complete(r)
 }
 
 // Reconcile finds nodes matching the configuration .spec.masterNodesLabel
@@ -62,7 +65,7 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	config, err := fetchKubeovnConfig(ctx, r.Client, r.Namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			r.Log.Info("waiting for kubeovn configuration to be created, nothing to do: %v", err)
+			r.Log.Info("waiting for kubeovn configuration to be created, nothing to do")
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
@@ -107,7 +110,7 @@ func (r *NodeReconciler) reconcileNodeDeletion(ctx context.Context, config *kube
 		}
 	}
 
-	if err := r.reconcileOVSOVNState(nodeIP); err != nil {
+	if err := r.reconcileOVSOVNState(ctx, nodeIP); err != nil {
 		return ctrl.Result{}, nil
 	}
 	// perform ovn northbound and southbound db cleanup operations
@@ -122,49 +125,30 @@ func (r *NodeReconciler) reconcileNodeDeletion(ctx context.Context, config *kube
 // reconcileOVNCentralState attempts to perform the kubeovn cleanup procedure for ovn north and south
 // databases running on ovn-central as documented at https://kubeovn.github.io/docs/v1.12.x/en/ops/change-ovn-central-node/
 func (r *NodeReconciler) reconcileOVNCentralState(ctx context.Context, nodeIP string) error {
-	podList, err := r.podList(ctx, NBLeaderLabel)
-	if err != nil {
-		return fmt.Errorf("error generating pod list when checking for label %s: %v", NBLeaderLabel, err)
-	}
-
-	if len(podList.Items) == 0 {
-		return fmt.Errorf("expected to find atleast one leader pod, requeuing until condition is met")
-	}
 	// generate nb cleanup template
 	script, err := render.GenerateNorthBoundCleanupScript(nodeIP)
 	if err != nil {
 		return fmt.Errorf("error generating northbound cleanup script using ip %s: %v", nodeIP, err)
 	}
 
-	// initialise executor
-	pod := podList.Items[0]
-	executor, err := executor.NewRemoteCommandExecutor(ctx, r.RestConfig, &pod)
-	if err != nil {
-		return fmt.Errorf("error generating new remote command executor: %v", err)
+	if err := r.executeRemoteScriptOnLeader(ctx, script, NBLeaderLabel, nodeIP); err != nil {
+		return fmt.Errorf("error executing northbound cleanup script on node %s: %v", nodeIP, err)
 	}
-	// perform NB cleanup
-	result, err := executor.Run(OVNCentralContainerName, script)
-	if err != nil {
-		return fmt.Errorf("Error during northbound command execution %s: %v", string(result), err)
-	}
-	r.Log.WithValues("nodeAddress", nodeIP).Info(string(result))
 
 	// generate sb cleanup template
 	script, err = render.GenerateSouthBoundCleanupScript(nodeIP)
 	if err != nil {
 		return fmt.Errorf("error generating southbound cleanup script using ip %s: %v", nodeIP, err)
 	}
-	// perform SB cleanup
-	result, err = executor.Run(OVNCentralContainerName, script)
-	if err != nil {
-		return fmt.Errorf("Error during southbound cleanup command execution %s: %v", string(result), err)
-	}
-	r.Log.WithValues("nodeAddress", nodeIP).Info(string(result))
-	return nil
+	return r.executeRemoteScriptOnLeader(ctx, script, SBLeaderLabel, nodeIP)
 }
 
-func (r *NodeReconciler) reconcileOVSOVNState(nodeIP string) error {
-	return nil
+func (r *NodeReconciler) reconcileOVSOVNState(ctx context.Context, hostname string) error {
+	script, err := render.GenerateChassisCleanupScript(hostname)
+	if err != nil {
+		return fmt.Errorf("error rendering chassis cleanup script: %v", err)
+	}
+	return r.executeRemoteScriptOnLeader(ctx, script, SBLeaderLabel, hostname)
 }
 
 func (r *NodeReconciler) podList(ctx context.Context, label string) (*corev1.PodList, error) {
@@ -176,4 +160,26 @@ func (r *NodeReconciler) podList(ctx context.Context, label string) (*corev1.Pod
 	podList := &corev1.PodList{}
 	err = r.Client.List(ctx, podList, &client.ListOptions{LabelSelector: selector})
 	return podList, err
+}
+
+func (r *NodeReconciler) executeRemoteScriptOnLeader(ctx context.Context, script string, label string, node string) error {
+	podList, err := r.podList(ctx, label)
+	if err != nil {
+		return fmt.Errorf("error generating pod list when checking for label %s: %v", label, err)
+	}
+
+	if len(podList.Items) == 0 || len(podList.Items) > 1 {
+		return fmt.Errorf("expected to find only one leader pod, but found %d, requeuing until condition is met", len(podList.Items))
+	}
+	pod := podList.Items[0]
+	podExecutor, err := executor.NewRemoteCommandExecutor(ctx, r.RestConfig, &pod)
+	if err != nil {
+		return fmt.Errorf("error generating new remote command executor: %v", err)
+	}
+	result, err := podExecutor.Run(OVNCentralContainerName, script)
+	if err != nil {
+		return fmt.Errorf("Error during southbound cleanup command execution %s: %v", string(result), err)
+	}
+	r.Log.WithValues("node", node).Info(string(result))
+	return nil
 }

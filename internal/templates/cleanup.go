@@ -1,7 +1,6 @@
 package templates
 
-var CleanupNBDB = `
-<<EOF
+var CleanupNBDB = `<<EOF
 nbstatus=$(ovs-appctl -t /var/run/ovn/ovnnb_db.ctl cluster/status OVN_Northbound)
 echo "current northbound status"
 echo "$nbstatus"
@@ -15,7 +14,7 @@ then
 fi
 `
 
-var CleanupSBDB = `
+var CleanupSBDB = `<<EOF
 sbStatus=$(ovs-appctl -t /var/run/ovn/ovnsb_db.ctl cluster/status OVN_Southbound)
 echo "current southbound status"
 echo "$sbStatus"
@@ -27,4 +26,13 @@ then
   echo "current southbound status"
   ovs-appctl -t /var/run/ovn/ovnsb_db.ctl cluster/status OVN_Southbound
 fi
+`
+
+var CleanupChassis = `<<EOF
+chassis=$(ovn-sbctl --columns=name find  chassis hostname={{ .HostName }} | awk -F ":" '{print $2}' | tr -d '"')
+if [ -n "$chassis" ]
+then
+  ovn-sbctl chassis-del $chassis
+fi
+ovn-sbctl show
 `

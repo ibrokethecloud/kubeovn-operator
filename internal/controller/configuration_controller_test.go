@@ -17,7 +17,6 @@ limitations under the License.
 package controller
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -46,8 +45,6 @@ const (
 
 var _ = Describe("Configuration Controller", func() {
 	Context("When reconciling a resource", func() {
-
-		ctx := context.Background()
 		configuration := &kubeovniov1.Configuration{}
 
 		BeforeEach(func() {

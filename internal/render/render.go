@@ -211,3 +211,19 @@ func generateScript(nodeAddress, script string) (string, error) {
 	}
 	return result.String(), nil
 }
+
+func GenerateChassisCleanupScript(hostname string) (string, error) {
+	values := map[string]string{
+		"Hostname": hostname,
+	}
+	tmpl, err := template.New("script").Parse(templates.CleanupChassis)
+	if err != nil {
+		return "", fmt.Errorf("error parsing chassis cleanup template %s: %v", err)
+	}
+	var result bytes.Buffer
+	err = tmpl.Execute(&result, values)
+	if err != nil {
+		return "", fmt.Errorf("error during template execution %s using values %v: %v", templates.CleanupChassis, values, err)
+	}
+	return result.String(), nil
+}
