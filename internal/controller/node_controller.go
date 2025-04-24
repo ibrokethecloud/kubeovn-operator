@@ -71,6 +71,11 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{}, err
 	}
 
+	if !config.DeletionTimestamp.IsZero() {
+		// config is being deleted, no more node reconcile is needed
+		return ctrl.Result{}, nil
+	}
+
 	if node.DeletionTimestamp != nil {
 		// reconcile ovn north and south databases and check if there is a condition matching
 		return r.reconcileNodeDeletion(ctx, config, node)

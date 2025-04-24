@@ -22,12 +22,14 @@ import (
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/yaml"
 
 	kubeovniov1 "github.com/harvester/kubeovn-operator/api/v1"
@@ -74,6 +76,29 @@ var _ = Describe("Configuration Controller", func() {
 					}
 					return fmt.Errorf("waiting for configuration object to be gc'd")
 				}, "30s", "5s").Should(BeNil())
+			})
+
+			By("checking node finalizers have been removed", func() {
+				nodeList := &corev1.NodeList{}
+				Eventually(func() error {
+					err := k8sClient.List(ctx, nodeList)
+					if err != nil {
+						return nil
+					}
+
+					var notFound bool
+					for _, v := range nodeList.Items {
+						node := &v
+						if controllerutil.ContainsFinalizer(node, kubeovniov1.KubeOVNNodeFinalizer) {
+							notFound = notFound || true
+						}
+					}
+
+					if !notFound {
+						return fmt.Errorf("expected finalisers to have been removed")
+					}
+					return nil
+				}, "30s", "5s").ShouldNot(HaveOccurred())
 			})
 
 		})

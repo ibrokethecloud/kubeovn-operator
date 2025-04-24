@@ -296,6 +296,23 @@ func (r *ConfigurationReconciler) deleteClusterScopedReference(ctx context.Conte
 		return r.Client.Patch(ctx, config, client.MergeFrom(configObj))
 	}
 
+	// remove node finalizers to ensure nodes can be managed later on
+	nodeList := corev1.NodeList{}
+	err = r.Client.List(ctx, &nodeList)
+	if err != nil {
+		return fmt.Errorf("error fetching node list during configuration deletion: %v", err)
+	}
+
+	for _, v := range nodeList.Items {
+		node := &v
+		nodeCopy := node.DeepCopy()
+		if controllerutil.ContainsFinalizer(node, kubeovniov1.KubeOVNNodeFinalizer) {
+			controllerutil.RemoveFinalizer(node, kubeovniov1.KubeOVNNodeFinalizer)
+			if err := r.Client.Patch(ctx, node, client.MergeFrom(nodeCopy)); err != nil {
+				return fmt.Errorf("error patching node %s: %v", node.GetName(), err)
+			}
+		}
+	}
 	return nil
 }
 
