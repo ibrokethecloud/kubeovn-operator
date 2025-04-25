@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -233,20 +234,35 @@ func (r *ConfigurationReconciler) findMasterNodes(ctx context.Context, config *k
 	if len(nodeAddresses) == 0 {
 		r.EventRecorder.Event(config, corev1.EventTypeWarning,
 			"ReconcilePaused", "no nodes matching master node labels found")
+		config.SetCondition(kubeovniov1.WaitingForMatchignNodesCondition, metav1.ConditionTrue, "Waiting for matching nodes", "")
 		return nil
 	}
-
+	config.SetCondition(kubeovniov1.WaitingForMatchignNodesCondition, metav1.ConditionFalse, fmt.Sprintf("found nodes %s", strings.Join(nodeAddresses, ",")), "")
 	config.Status.MatchingNodeAddresses = nodeAddresses
 	return nil
 }
 
 // initializeConditions will initialise baseline conditions for the configuration object
 func (r *ConfigurationReconciler) initializeConditions(ctx context.Context, config *kubeovniov1.Configuration) error {
-	if len(config.Status.Conditions) == 2 {
-		return nil
+	if !config.ConditionExists(kubeovniov1.WaitingForMatchignNodesCondition) {
+		config.SetCondition(kubeovniov1.WaitingForMatchignNodesCondition, metav1.ConditionUnknown, "", "")
 	}
-	config.SetCondition(kubeovniov1.ErroredObjectsCondition, metav1.ConditionUnknown, "", "Unknown")
-	config.SetCondition(kubeovniov1.WaitingForMatchignNodesCondition, metav1.ConditionTrue, "", "Unknown")
+
+	if !config.ConditionExists(kubeovniov1.OVNNBLeaderFound) {
+		config.SetCondition(kubeovniov1.OVNNBLeaderFound, metav1.ConditionUnknown, "", "Unknown")
+	}
+
+	if !config.ConditionExists(kubeovniov1.OVNSBLeaderFound) {
+		config.SetCondition(kubeovniov1.OVNSBLeaderFound, metav1.ConditionUnknown, "", "Unknown")
+	}
+
+	if !config.ConditionExists(kubeovniov1.OVNNBDBHealth) {
+		config.SetCondition(kubeovniov1.OVNSBLeaderFound, metav1.ConditionUnknown, "", "Unknown")
+	}
+
+	if !config.ConditionExists(kubeovniov1.OVNNBDBHealth) {
+		config.SetCondition(kubeovniov1.OVNSBLeaderFound, metav1.ConditionUnknown, "", "Unknown")
+	}
 	return nil
 }
 

@@ -12,6 +12,7 @@ then
   echo "current northbound status"
   ovs-appctl -t /var/run/ovn/ovnnb_db.ctl cluster/status OVN_Northbound
 fi
+EOF
 `
 
 var CleanupSBDB = `<<EOF
@@ -26,6 +27,7 @@ then
   echo "current southbound status"
   ovs-appctl -t /var/run/ovn/ovnsb_db.ctl cluster/status OVN_Southbound
 fi
+EOF
 `
 
 var CleanupChassis = `<<EOF
@@ -35,4 +37,5 @@ then
   ovn-sbctl chassis-del $chassis
 fi
 ovn-sbctl show
+EOF
 `

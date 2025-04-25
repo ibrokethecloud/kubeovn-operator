@@ -350,10 +350,22 @@ const (
 	ConfigurationStatusDeployed      = "Deployed"
 	DefaultConfigurationName         = "kubeovn"
 	WaitingForMatchignNodesCondition = "waitingForMatchignNodes"
-	ErroredObjectsCondition          = "erroredObjects"
+	OVNNBLeaderFound                 = "ovnNorthDBLeaderFound"
+	OVNSBLeaderFound                 = "ovnSouthDBLeaderFound"
+	OVNNBDBHealth                    = "ovnNBDBHealth"
+	OVNSBDBHealth                    = "ovnSBDBHealth"
 	KubeOVNFakeNamespace             = "kubeovn-owner-namespace"
 	KubeOVNConfigurationFinalizer    = "finalizer.kubeovn.io/configuration"
 	KubeOVNNodeFinalizer             = "finalizer.kubeovn.io/node"
+	SBLeaderLabel                    = "ovn-sb-leader=true"
+	NBLeaderLabel                    = "ovn-nb-leader=true"
+	OVNCentralContainerName          = "ovn-central"
+	NBCheckScript                    = `<<EOF
+	ovs-appctl -t /var/run/ovn/ovnnb_db.ctl cluster/status OVN_Northbound
+	EOF`
+	SBCheckScript = `<<EOF
+	ovs-appctl -t /var/run/ovn/ovnsb_db.ctl cluster/status OVN_Southbound
+	EOF`
 )
 
 var (
@@ -384,25 +396,34 @@ func (c *Configuration) SetCondition(conditionType string, conditionStatus metav
 }
 
 func (c *Configuration) ConditionTrue(conditionType string) bool {
-	condition := c.lookupCondition(conditionType)
+	condition := c.LookupCondition(conditionType)
 	return condition.Status == metav1.ConditionTrue
 }
 
 func (c *Configuration) ConditionFalse(conditionType string) bool {
-	condition := c.lookupCondition(conditionType)
+	condition := c.LookupCondition(conditionType)
 	return condition.Status == metav1.ConditionFalse
 }
 
 func (c *Configuration) ConditionUnknown(conditionType string) bool {
-	condition := c.lookupCondition(conditionType)
+	condition := c.LookupCondition(conditionType)
 	return condition.Status == metav1.ConditionUnknown
 }
 
-func (c *Configuration) lookupCondition(conditionType string) metav1.Condition {
+func (c *Configuration) LookupCondition(conditionType string) metav1.Condition {
 	for _, v := range c.Status.Conditions {
 		if v.Type == conditionType {
 			return v
 		}
 	}
 	return metav1.Condition{}
+}
+
+func (c *Configuration) ConditionExists(conditionType string) bool {
+	for _, v := range c.Status.Conditions {
+		if v.Type == conditionType {
+			return true
+		}
+	}
+	return false
 }

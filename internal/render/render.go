@@ -218,7 +218,7 @@ func GenerateChassisCleanupScript(hostname string) (string, error) {
 	}
 	tmpl, err := template.New("script").Parse(templates.CleanupChassis)
 	if err != nil {
-		return "", fmt.Errorf("error parsing chassis cleanup template %s: %v", err)
+		return "", fmt.Errorf("error parsing chassis cleanup template %s: %v", templates.CleanupChassis, err)
 	}
 	var result bytes.Buffer
 	err = tmpl.Execute(&result, values)

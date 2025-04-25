@@ -24,13 +24,6 @@ import (
 	"github.com/harvester/kubeovn-operator/internal/render"
 )
 
-const (
-	KubeOVNNodeFinalizer    = "nodes.kubeovn.io"
-	SBLeaderLabel           = "ovn-sb-leader=true"
-	NBLeaderLabel           = "ovn-nb-leader=true"
-	OVNCentralContainerName = "ovn-central"
-)
-
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch;create;update;patch;delete
 type NodeReconciler struct {
 	client.Client
@@ -113,6 +106,13 @@ func (r *NodeReconciler) reconcileNodeDeletion(ctx context.Context, config *kube
 		if err := r.reconcileOVNCentralState(ctx, nodeIP); err != nil {
 			return ctrl.Result{}, err
 		}
+		// reconcile config and update master node details
+		// this will result in regeneration of templates
+		configObj := config.DeepCopy()
+		config.Status.MatchingNodeAddresses = removeElement(config.Status.MatchingNodeAddresses, nodeIP)
+		if err := r.Client.Status().Patch(ctx, config, client.MergeFrom(configObj)); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	if err := r.reconcileOVSOVNState(ctx, nodeIP); err != nil {
@@ -136,7 +136,7 @@ func (r *NodeReconciler) reconcileOVNCentralState(ctx context.Context, nodeIP st
 		return fmt.Errorf("error generating northbound cleanup script using ip %s: %v", nodeIP, err)
 	}
 
-	if err := r.executeRemoteScriptOnLeader(ctx, script, NBLeaderLabel, nodeIP); err != nil {
+	if err := r.executeRemoteScriptOnLeader(ctx, script, kubeovniov1.NBLeaderLabel, nodeIP); err != nil {
 		return fmt.Errorf("error executing northbound cleanup script on node %s: %v", nodeIP, err)
 	}
 
@@ -145,30 +145,34 @@ func (r *NodeReconciler) reconcileOVNCentralState(ctx context.Context, nodeIP st
 	if err != nil {
 		return fmt.Errorf("error generating southbound cleanup script using ip %s: %v", nodeIP, err)
 	}
-	return r.executeRemoteScriptOnLeader(ctx, script, SBLeaderLabel, nodeIP)
+	return r.executeRemoteScriptOnLeader(ctx, script, kubeovniov1.SBLeaderLabel, nodeIP)
 }
 
+// reconcileOVSOVNState cleans up chassis-id from the ovn southbound db when any node is removed
 func (r *NodeReconciler) reconcileOVSOVNState(ctx context.Context, hostname string) error {
 	script, err := render.GenerateChassisCleanupScript(hostname)
 	if err != nil {
 		return fmt.Errorf("error rendering chassis cleanup script: %v", err)
 	}
-	return r.executeRemoteScriptOnLeader(ctx, script, SBLeaderLabel, hostname)
+	return r.executeRemoteScriptOnLeader(ctx, script, kubeovniov1.SBLeaderLabel, hostname)
 }
 
-func (r *NodeReconciler) podList(ctx context.Context, label string) (*corev1.PodList, error) {
+// podList is a helper function to help identify NB/SB leader pods
+func podList(ctx context.Context, label string, k8sClient client.Client) (*corev1.PodList, error) {
 	selector, err := labels.Parse(label)
 	if err != nil {
 		return nil, fmt.Errorf("error unable to parse label list %s: %v", label, err)
 	}
 
 	podList := &corev1.PodList{}
-	err = r.Client.List(ctx, podList, &client.ListOptions{LabelSelector: selector})
+	err = k8sClient.List(ctx, podList, &client.ListOptions{LabelSelector: selector})
 	return podList, err
 }
 
+// executeRemoteScriptOnLeader helps users execute remote scripts on a specific pod and return results
+// it emulates kubectl exec against the OVNCentral pod
 func (r *NodeReconciler) executeRemoteScriptOnLeader(ctx context.Context, script string, label string, node string) error {
-	podList, err := r.podList(ctx, label)
+	podList, err := podList(ctx, label, r.Client)
 	if err != nil {
 		return fmt.Errorf("error generating pod list when checking for label %s: %v", label, err)
 	}
@@ -181,10 +185,20 @@ func (r *NodeReconciler) executeRemoteScriptOnLeader(ctx context.Context, script
 	if err != nil {
 		return fmt.Errorf("error generating new remote command executor: %v", err)
 	}
-	result, err := podExecutor.Run(OVNCentralContainerName, script)
+	result, err := podExecutor.Run(kubeovniov1.OVNCentralContainerName, script)
 	if err != nil {
 		return fmt.Errorf("Error during southbound cleanup command execution %s: %v", string(result), err)
 	}
 	r.Log.WithValues("node", node).Info(string(result))
 	return nil
+}
+
+// removeElement is a simple function to remove a matching element from an array of strings
+func removeElement(elements []string, element string) []string {
+	for i := range elements {
+		if elements[i] == element {
+			return append(elements[:i], elements[i+1:]...)
+		}
+	}
+	return elements
 }

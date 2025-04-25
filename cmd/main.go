@@ -74,6 +74,7 @@ func main() {
 	var tlsOpts []func(*tls.Config)
 	var namespace string
 	var debug bool
+	var healthCheckInterval int
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -94,6 +95,7 @@ func main() {
 	flag.StringVar(&namespace, "namespace", "", "The namespace passed via downward API to identify where to deploy and watch generated resources")
 	flag.StringVar(&Version, "version", "v1.14.0", "Version passed to kubeovn image tag in generated resources")
 	flag.BoolVar(&debug, "debug", false, "Enable debug logging")
+	flag.IntVar(&healthCheckInterval, "healthCheckInterval", 300, "Healthcheck interval for check OVN DB health")
 
 	opts := zap.Options{
 		Level: zapcore.InfoLevel,
@@ -251,6 +253,18 @@ func main() {
 		EventRecorder: mgr.GetEventRecorderFor("node-controller"),
 		RestConfig:    mgr.GetConfig(),
 		Log:           logf.FromContext(ctx),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Node")
+	}
+
+	if err = (&controller.HealthCheckReconciler{
+		Client:              mgr.GetClient(),
+		Scheme:              mgr.GetScheme(),
+		Namespace:           namespace,
+		EventRecorder:       mgr.GetEventRecorderFor("healthcheck-controller"),
+		RestConfig:          mgr.GetConfig(),
+		Log:                 logf.FromContext(ctx),
+		HealthCheckInterval: healthCheckInterval,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Node")
 	}
