@@ -112,8 +112,8 @@ var _ = Describe("Configuration Controller", func() {
 						return err
 					}
 					testSuiteLogger.WithValues("current status", resource.Status).Info("current status")
-					if len(resource.Status.Conditions) != 2 {
-						return fmt.Errorf("expected to find 2 baseline conditions")
+					if len(resource.Status.Conditions) != 5 {
+						return fmt.Errorf("expected to find 5 baseline conditions")
 					}
 					return nil
 				}, "30s", "5s").Should(BeNil())

@@ -172,20 +172,7 @@ func podList(ctx context.Context, label string, k8sClient client.Client) (*corev
 // executeRemoteScriptOnLeader helps users execute remote scripts on a specific pod and return results
 // it emulates kubectl exec against the OVNCentral pod
 func (r *NodeReconciler) executeRemoteScriptOnLeader(ctx context.Context, script string, label string, node string) error {
-	podList, err := podList(ctx, label, r.Client)
-	if err != nil {
-		return fmt.Errorf("error generating pod list when checking for label %s: %v", label, err)
-	}
-
-	if len(podList.Items) == 0 || len(podList.Items) > 1 {
-		return fmt.Errorf("expected to find only one leader pod, but found %d, requeuing until condition is met", len(podList.Items))
-	}
-	pod := podList.Items[0]
-	podExecutor, err := executor.NewRemoteCommandExecutor(ctx, r.RestConfig, &pod)
-	if err != nil {
-		return fmt.Errorf("error generating new remote command executor: %v", err)
-	}
-	result, err := podExecutor.Run(kubeovniov1.OVNCentralContainerName, script)
+	result, err := executeOVNCentralCommand(ctx, script, label, r.Client, r.RestConfig)
 	if err != nil {
 		return fmt.Errorf("Error during southbound cleanup command execution %s: %v", string(result), err)
 	}
@@ -201,4 +188,22 @@ func removeElement(elements []string, element string) []string {
 		}
 	}
 	return elements
+}
+
+// executeOVNCentralCommand is a wrapper to abstract OVNCentralCommand execution
+func executeOVNCentralCommand(ctx context.Context, script string, label string, k8sClient client.Client, restConfig *rest.Config) ([]byte, error) {
+	podList, err := podList(ctx, label, k8sClient)
+	if err != nil {
+		return nil, fmt.Errorf("error generating pod list when checking for label %s: %v", label, err)
+	}
+
+	if len(podList.Items) == 0 || len(podList.Items) > 1 {
+		return nil, fmt.Errorf("expected to find only one leader pod, but found %d, requeuing until condition is met", len(podList.Items))
+	}
+	pod := podList.Items[0]
+	podExecutor, err := executor.NewRemoteCommandExecutor(ctx, restConfig, &pod)
+	if err != nil {
+		return nil, fmt.Errorf("error generating new remote command executor: %v", err)
+	}
+	return podExecutor.Run(kubeovniov1.OVNCentralContainerName, script)
 }

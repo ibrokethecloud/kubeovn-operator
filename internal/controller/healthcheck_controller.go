@@ -68,10 +68,10 @@ func (r *HealthCheckReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// healthcheck only updates conditions. since object is also reconciled by another controller we ignore the rest
 	if !reflect.DeepEqual(config.Status.Conditions, configObj.Status.Conditions) {
 		if err := r.Client.Status().Patch(ctx, config, client.MergeFrom(configObj)); err != nil {
-			return ctrl.Result{}, nil
+			return ctrl.Result{}, err
 		}
 	}
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: time.Duration(r.HealthCheckInterval) * time.Second}, nil
 }
 
 // reconcileOVNDBHealth reconciles health of north and south db
@@ -88,10 +88,10 @@ func (r *HealthCheckReconciler) reconcileOVNDBHealth(ctx context.Context, config
 	}
 
 	if len(nbPods.Items) == 0 {
-		config.SetCondition(kubeovniov1.OVNNBLeaderFound, metav1.ConditionFalse, "no pods matching northbound leader label requirements found", "")
+		config.SetCondition(kubeovniov1.OVNNBLeaderFound, metav1.ConditionFalse, "", "no pods matching northbound leader label requirements found")
 	} else {
 		runNBCheck = true
-		config.SetCondition(kubeovniov1.OVNNBLeaderFound, metav1.ConditionTrue, fmt.Sprintf("northbound leader found %s", nbPods.Items[0].GetName()), "")
+		config.SetCondition(kubeovniov1.OVNNBLeaderFound, metav1.ConditionTrue, "", fmt.Sprintf("northbound leader found %s", nbPods.Items[0].GetName()))
 	}
 
 	// check if SouthBound leader exists
@@ -101,20 +101,31 @@ func (r *HealthCheckReconciler) reconcileOVNDBHealth(ctx context.Context, config
 	}
 
 	if len(sbPods.Items) == 0 {
-		config.SetCondition(kubeovniov1.OVNSBLeaderFound, metav1.ConditionFalse, "no pods matching southbound leader label requirements found", "")
+		config.SetCondition(kubeovniov1.OVNSBLeaderFound, metav1.ConditionFalse, "", "no pods matching southbound leader label requirements found")
 	} else {
 		runSBCheck = true
-		config.SetCondition(kubeovniov1.OVNSBLeaderFound, metav1.ConditionTrue, fmt.Sprintf("northbound leader found %s", sbPods.Items[0].GetName()), "")
+		config.SetCondition(kubeovniov1.OVNSBLeaderFound, metav1.ConditionTrue, "", fmt.Sprintf("northbound leader found %s", sbPods.Items[0].GetName()))
 	}
 
 	// run health check on northbound db
 	if runNBCheck {
-		// logic for execution of health check script and updating status conditions
-
+		result, err := executeOVNCentralCommand(ctx, kubeovniov1.NBCheckScript, kubeovniov1.SBLeaderLabel, r.Client, r.RestConfig)
+		if err != nil {
+			r.Log.Error(err, "NBCheck failure")
+			config.SetCondition(kubeovniov1.OVNNBDBHealth, metav1.ConditionFalse, "", string(result))
+		} else {
+			config.SetCondition(kubeovniov1.OVNNBDBHealth, metav1.ConditionTrue, "", string(result))
+		}
 	}
 
 	if runSBCheck {
-		// logic for execution of health check script and updating status conditions
+		result, err := executeOVNCentralCommand(ctx, kubeovniov1.SBCheckScript, kubeovniov1.SBLeaderLabel, r.Client, r.RestConfig)
+		if err != nil {
+			r.Log.Error(err, "NBCheck failure")
+			config.SetCondition(kubeovniov1.OVNNBDBHealth, metav1.ConditionFalse, "", string(result))
+		} else {
+			config.SetCondition(kubeovniov1.OVNNBDBHealth, metav1.ConditionTrue, "", string(result))
+		}
 	}
 	return nil
 }

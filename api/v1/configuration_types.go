@@ -366,6 +366,11 @@ const (
 	SBCheckScript = `<<EOF
 	ovs-appctl -t /var/run/ovn/ovnsb_db.ctl cluster/status OVN_Southbound
 	EOF`
+	NodesFoundReason       = "NodesFound"
+	NodesNotFoundReason    = "NodesNotFound"
+	ConditionUnknown       = "ConditionUnknown"
+	ConditionCheckFailed   = "ConditionCheckFailed"
+	ConditionCheckExecuted = "ConditionCheckExecuted"
 )
 
 var (

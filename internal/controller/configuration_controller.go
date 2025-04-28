@@ -168,16 +168,17 @@ func (r *ConfigurationReconciler) applyObject(ctx context.Context, config *kubeo
 
 // reconcileObject will create / update the managed objects
 func (r *ConfigurationReconciler) reconcileObject(ctx context.Context, obj client.Object) error {
-	emptyObj := render.InitialiseNewObject(obj)
-	err := r.Client.Get(ctx, types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, emptyObj)
+	existingObj := render.InitialiseNewObject(obj)
+	err := r.Client.Get(ctx, types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, existingObj)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
+			r.Log.WithValues("objectName", obj.GetName()).Info("creating object")
 			return r.Create(ctx, obj)
 		}
 		return fmt.Errorf("error fetching object %s/%s: %v", obj.GetNamespace(), obj.GetName(), err)
 	}
-
-	return r.Patch(ctx, obj, client.MergeFrom(emptyObj))
+	r.Log.WithValues("objectName", obj.GetName()).Info("updating object")
+	return r.Patch(ctx, obj, client.StrategicMergeFrom(existingObj, client.MergeFromWithOptimisticLock{}))
 }
 
 func (r *ConfigurationReconciler) filterObject(ctx context.Context, obj client.Object) []ctrl.Request {
@@ -234,10 +235,10 @@ func (r *ConfigurationReconciler) findMasterNodes(ctx context.Context, config *k
 	if len(nodeAddresses) == 0 {
 		r.EventRecorder.Event(config, corev1.EventTypeWarning,
 			"ReconcilePaused", "no nodes matching master node labels found")
-		config.SetCondition(kubeovniov1.WaitingForMatchignNodesCondition, metav1.ConditionTrue, "Waiting for matching nodes", "")
+		config.SetCondition(kubeovniov1.WaitingForMatchignNodesCondition, metav1.ConditionTrue, "Waiting for matching nodes", kubeovniov1.NodesNotFoundReason)
 		return nil
 	}
-	config.SetCondition(kubeovniov1.WaitingForMatchignNodesCondition, metav1.ConditionFalse, fmt.Sprintf("found nodes %s", strings.Join(nodeAddresses, ",")), "")
+	config.SetCondition(kubeovniov1.WaitingForMatchignNodesCondition, metav1.ConditionFalse, fmt.Sprintf("found nodes %s", strings.Join(nodeAddresses, ",")), kubeovniov1.NodesFoundReason)
 	config.Status.MatchingNodeAddresses = nodeAddresses
 	return nil
 }
@@ -245,23 +246,23 @@ func (r *ConfigurationReconciler) findMasterNodes(ctx context.Context, config *k
 // initializeConditions will initialise baseline conditions for the configuration object
 func (r *ConfigurationReconciler) initializeConditions(ctx context.Context, config *kubeovniov1.Configuration) error {
 	if !config.ConditionExists(kubeovniov1.WaitingForMatchignNodesCondition) {
-		config.SetCondition(kubeovniov1.WaitingForMatchignNodesCondition, metav1.ConditionUnknown, "", "")
+		config.SetCondition(kubeovniov1.WaitingForMatchignNodesCondition, metav1.ConditionUnknown, "Unknown", kubeovniov1.ConditionUnknown)
 	}
 
 	if !config.ConditionExists(kubeovniov1.OVNNBLeaderFound) {
-		config.SetCondition(kubeovniov1.OVNNBLeaderFound, metav1.ConditionUnknown, "", "Unknown")
+		config.SetCondition(kubeovniov1.OVNNBLeaderFound, metav1.ConditionUnknown, "Unknown", kubeovniov1.ConditionUnknown)
 	}
 
 	if !config.ConditionExists(kubeovniov1.OVNSBLeaderFound) {
-		config.SetCondition(kubeovniov1.OVNSBLeaderFound, metav1.ConditionUnknown, "", "Unknown")
+		config.SetCondition(kubeovniov1.OVNSBLeaderFound, metav1.ConditionUnknown, "Unknown", kubeovniov1.ConditionUnknown)
 	}
 
 	if !config.ConditionExists(kubeovniov1.OVNNBDBHealth) {
-		config.SetCondition(kubeovniov1.OVNSBLeaderFound, metav1.ConditionUnknown, "", "Unknown")
+		config.SetCondition(kubeovniov1.OVNNBDBHealth, metav1.ConditionUnknown, "Unknown", kubeovniov1.ConditionUnknown)
 	}
 
-	if !config.ConditionExists(kubeovniov1.OVNNBDBHealth) {
-		config.SetCondition(kubeovniov1.OVNSBLeaderFound, metav1.ConditionUnknown, "", "Unknown")
+	if !config.ConditionExists(kubeovniov1.OVNSBDBHealth) {
+		config.SetCondition(kubeovniov1.OVNSBDBHealth, metav1.ConditionUnknown, "Unknown", kubeovniov1.ConditionUnknown)
 	}
 	return nil
 }
