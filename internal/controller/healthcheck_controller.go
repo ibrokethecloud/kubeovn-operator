@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	kubeovniov1 "github.com/harvester/kubeovn-operator/api/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -15,6 +14,8 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	kubeovniov1 "github.com/harvester/kubeovn-operator/api/v1"
 )
 
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch;create;update;patch;delete
@@ -77,54 +78,57 @@ func (r *HealthCheckReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 // reconcileOVNDBHealth reconciles health of north and south db
 func (r *HealthCheckReconciler) reconcileOVNDBHealth(ctx context.Context, config *kubeovniov1.Configuration) error {
 	if !r.checkNeeded(config) {
+		r.Log.WithValues("name", config.Name).Info("no healthcheck needed")
 		return nil
 	}
+
+	r.Log.WithValues("name", config.Name).Info("performing healthcheck")
 	var runNBCheck, runSBCheck bool
 
 	// check if NorthBound leader exists
-	nbPods, err := podList(ctx, kubeovniov1.NBLeaderLabel, r.Client)
+	nbPods, err := podList(ctx, kubeovniov1.NBLeaderLabel, r.Client, r.Namespace)
 	if err != nil {
 		return fmt.Errorf("error fetching northbound leader: %v", err)
 	}
 
 	if len(nbPods.Items) == 0 {
-		config.SetCondition(kubeovniov1.OVNNBLeaderFound, metav1.ConditionFalse, "", "no pods matching northbound leader label requirements found")
+		config.SetCondition(kubeovniov1.OVNNBLeaderFound, metav1.ConditionFalse, "no pods matching northbound leader label requirements found", kubeovniov1.LeaderNotFound)
 	} else {
 		runNBCheck = true
-		config.SetCondition(kubeovniov1.OVNNBLeaderFound, metav1.ConditionTrue, "", fmt.Sprintf("northbound leader found %s", nbPods.Items[0].GetName()))
+		config.SetCondition(kubeovniov1.OVNNBLeaderFound, metav1.ConditionTrue, fmt.Sprintf("northbound leader found %s", nbPods.Items[0].GetName()), kubeovniov1.LeaderFound)
 	}
 
 	// check if SouthBound leader exists
-	sbPods, err := podList(ctx, kubeovniov1.SBLeaderLabel, r.Client)
+	sbPods, err := podList(ctx, kubeovniov1.SBLeaderLabel, r.Client, r.Namespace)
 	if err != nil {
 		return fmt.Errorf("error fetching southbound leader: %v", err)
 	}
 
 	if len(sbPods.Items) == 0 {
-		config.SetCondition(kubeovniov1.OVNSBLeaderFound, metav1.ConditionFalse, "", "no pods matching southbound leader label requirements found")
+		config.SetCondition(kubeovniov1.OVNSBLeaderFound, metav1.ConditionFalse, "no pods matching southbound leader label requirements found", kubeovniov1.LeaderNotFound)
 	} else {
 		runSBCheck = true
-		config.SetCondition(kubeovniov1.OVNSBLeaderFound, metav1.ConditionTrue, "", fmt.Sprintf("northbound leader found %s", sbPods.Items[0].GetName()))
+		config.SetCondition(kubeovniov1.OVNSBLeaderFound, metav1.ConditionTrue, fmt.Sprintf("northbound leader found %s", sbPods.Items[0].GetName()), kubeovniov1.LeaderFound)
 	}
 
 	// run health check on northbound db
 	if runNBCheck {
-		result, err := executeOVNCentralCommand(ctx, kubeovniov1.NBCheckScript, kubeovniov1.SBLeaderLabel, r.Client, r.RestConfig)
+		result, err := executeOVNCentralCommand(ctx, kubeovniov1.NBCheckScript, kubeovniov1.SBLeaderLabel, r.Client, r.RestConfig, r.Namespace)
 		if err != nil {
-			r.Log.Error(err, "NBCheck failure")
-			config.SetCondition(kubeovniov1.OVNNBDBHealth, metav1.ConditionFalse, "", string(result))
+			r.Log.Error(err, "NBCheck failure", string(result))
+			config.SetCondition(kubeovniov1.OVNNBDBHealth, metav1.ConditionFalse, string(result), kubeovniov1.DBHealth)
 		} else {
-			config.SetCondition(kubeovniov1.OVNNBDBHealth, metav1.ConditionTrue, "", string(result))
+			config.SetCondition(kubeovniov1.OVNNBDBHealth, metav1.ConditionTrue, string(result), kubeovniov1.DBHealth)
 		}
 	}
 
 	if runSBCheck {
-		result, err := executeOVNCentralCommand(ctx, kubeovniov1.SBCheckScript, kubeovniov1.SBLeaderLabel, r.Client, r.RestConfig)
+		result, err := executeOVNCentralCommand(ctx, kubeovniov1.SBCheckScript, kubeovniov1.SBLeaderLabel, r.Client, r.RestConfig, r.Namespace)
 		if err != nil {
-			r.Log.Error(err, "NBCheck failure")
-			config.SetCondition(kubeovniov1.OVNNBDBHealth, metav1.ConditionFalse, "", string(result))
+			r.Log.Error(err, "SBCheck failure", string(result))
+			config.SetCondition(kubeovniov1.OVNSBDBHealth, metav1.ConditionFalse, string(result), kubeovniov1.DBHealth)
 		} else {
-			config.SetCondition(kubeovniov1.OVNNBDBHealth, metav1.ConditionTrue, "", string(result))
+			config.SetCondition(kubeovniov1.OVNSBDBHealth, metav1.ConditionTrue, string(result), kubeovniov1.DBHealth)
 		}
 	}
 	return nil

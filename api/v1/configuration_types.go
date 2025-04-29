@@ -360,17 +360,16 @@ const (
 	SBLeaderLabel                    = "ovn-sb-leader=true"
 	NBLeaderLabel                    = "ovn-nb-leader=true"
 	OVNCentralContainerName          = "ovn-central"
-	NBCheckScript                    = `<<EOF
-	ovs-appctl -t /var/run/ovn/ovnnb_db.ctl cluster/status OVN_Northbound
-	EOF`
-	SBCheckScript = `<<EOF
-	ovs-appctl -t /var/run/ovn/ovnsb_db.ctl cluster/status OVN_Southbound
-	EOF`
-	NodesFoundReason       = "NodesFound"
-	NodesNotFoundReason    = "NodesNotFound"
-	ConditionUnknown       = "ConditionUnknown"
-	ConditionCheckFailed   = "ConditionCheckFailed"
-	ConditionCheckExecuted = "ConditionCheckExecuted"
+	NBCheckScript                    = `ovs-appctl -t /var/run/ovn/ovnnb_db.ctl cluster/status OVN_Northbound`
+	SBCheckScript                    = `ovs-appctl -t /var/run/ovn/ovnsb_db.ctl cluster/status OVN_Southbound`
+	NodesFoundReason                 = "NodesFound"
+	NodesNotFoundReason              = "NodesNotFound"
+	ConditionUnknown                 = "ConditionUnknown"
+	ConditionCheckFailed             = "ConditionCheckFailed"
+	ConditionCheckExecuted           = "ConditionCheckExecuted"
+	LeaderFound                      = "LeaderFound"
+	LeaderNotFound                   = "LeaderNotFound"
+	DBHealth                         = "DBHealth"
 )
 
 var (

@@ -158,21 +158,21 @@ func (r *NodeReconciler) reconcileOVSOVNState(ctx context.Context, hostname stri
 }
 
 // podList is a helper function to help identify NB/SB leader pods
-func podList(ctx context.Context, label string, k8sClient client.Client) (*corev1.PodList, error) {
+func podList(ctx context.Context, label string, k8sClient client.Client, namespace string) (*corev1.PodList, error) {
 	selector, err := labels.Parse(label)
 	if err != nil {
 		return nil, fmt.Errorf("error unable to parse label list %s: %v", label, err)
 	}
 
 	podList := &corev1.PodList{}
-	err = k8sClient.List(ctx, podList, &client.ListOptions{LabelSelector: selector})
+	err = k8sClient.List(ctx, podList, &client.ListOptions{LabelSelector: selector, Namespace: namespace})
 	return podList, err
 }
 
 // executeRemoteScriptOnLeader helps users execute remote scripts on a specific pod and return results
 // it emulates kubectl exec against the OVNCentral pod
 func (r *NodeReconciler) executeRemoteScriptOnLeader(ctx context.Context, script string, label string, node string) error {
-	result, err := executeOVNCentralCommand(ctx, script, label, r.Client, r.RestConfig)
+	result, err := executeOVNCentralCommand(ctx, script, label, r.Client, r.RestConfig, r.Namespace)
 	if err != nil {
 		return fmt.Errorf("Error during southbound cleanup command execution %s: %v", string(result), err)
 	}
@@ -191,8 +191,8 @@ func removeElement(elements []string, element string) []string {
 }
 
 // executeOVNCentralCommand is a wrapper to abstract OVNCentralCommand execution
-func executeOVNCentralCommand(ctx context.Context, script string, label string, k8sClient client.Client, restConfig *rest.Config) ([]byte, error) {
-	podList, err := podList(ctx, label, k8sClient)
+func executeOVNCentralCommand(ctx context.Context, script string, label string, k8sClient client.Client, restConfig *rest.Config, namespace string) ([]byte, error) {
+	podList, err := podList(ctx, label, k8sClient, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("error generating pod list when checking for label %s: %v", label, err)
 	}

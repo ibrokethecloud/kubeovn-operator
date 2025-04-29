@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -178,7 +179,8 @@ func (r *ConfigurationReconciler) reconcileObject(ctx context.Context, obj clien
 		return fmt.Errorf("error fetching object %s/%s: %v", obj.GetNamespace(), obj.GetName(), err)
 	}
 	r.Log.WithValues("objectName", obj.GetName()).Info("updating object")
-	return r.Patch(ctx, obj, client.StrategicMergeFrom(existingObj, client.MergeFromWithOptimisticLock{}))
+	obj.SetResourceVersion(existingObj.GetResourceVersion())
+	return r.Patch(ctx, obj, client.MergeFrom(existingObj))
 }
 
 func (r *ConfigurationReconciler) filterObject(ctx context.Context, obj client.Object) []ctrl.Request {
@@ -232,14 +234,17 @@ func (r *ConfigurationReconciler) findMasterNodes(ctx context.Context, config *k
 
 	// if no nodeAddresses are found then it is likely we had no matching nodes
 	// we need to pause reconcile of the object until label matches
-	if len(nodeAddresses) == 0 {
+	if len(nodeAddresses) == 0 && !config.ConditionTrue(kubeovniov1.WaitingForMatchignNodesCondition) {
 		r.EventRecorder.Event(config, corev1.EventTypeWarning,
 			"ReconcilePaused", "no nodes matching master node labels found")
 		config.SetCondition(kubeovniov1.WaitingForMatchignNodesCondition, metav1.ConditionTrue, "Waiting for matching nodes", kubeovniov1.NodesNotFoundReason)
 		return nil
 	}
-	config.SetCondition(kubeovniov1.WaitingForMatchignNodesCondition, metav1.ConditionFalse, fmt.Sprintf("found nodes %s", strings.Join(nodeAddresses, ",")), kubeovniov1.NodesFoundReason)
-	config.Status.MatchingNodeAddresses = nodeAddresses
+
+	if !addressArrayEqual(nodeAddresses, config.Status.MatchingNodeAddresses) {
+		config.SetCondition(kubeovniov1.WaitingForMatchignNodesCondition, metav1.ConditionFalse, fmt.Sprintf("found nodes %s", strings.Join(nodeAddresses, ",")), kubeovniov1.NodesFoundReason)
+		config.Status.MatchingNodeAddresses = nodeAddresses
+	}
 	return nil
 }
 
@@ -340,4 +345,10 @@ func nodeInternalIP(node corev1.Node) string {
 		}
 	}
 	return ""
+}
+
+func addressArrayEqual(existing []string, discovered []string) bool {
+	slices.Sort(existing)
+	slices.Sort(discovered)
+	return slices.Equal(existing, discovered)
 }

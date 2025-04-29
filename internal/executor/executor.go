@@ -1,14 +1,14 @@
 package executor
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/cmd/exec"
@@ -44,7 +44,16 @@ func NewRemoteCommandExecutor(ctx context.Context, config *rest.Config, pod *cor
 }
 
 func (r *RemoteCommandExecutor) Run(containerName string, cmd string) ([]byte, error) {
-	iostreams, _, outBuffer, errBuffer := genericclioptions.NewTestIOStreams()
+	inBuf := &bytes.Buffer{}
+	outBuf := &bytes.Buffer{}
+	errBuf := &bytes.Buffer{}
+
+	iostreams := genericiooptions.IOStreams{
+		In:     inBuf,
+		Out:    outBuf,
+		ErrOut: errBuf,
+	}
+
 	streamOpts := exec.StreamOptions{
 		Namespace:     r.pod.Namespace,
 		PodName:       r.pod.Name,
@@ -52,7 +61,7 @@ func (r *RemoteCommandExecutor) Run(containerName string, cmd string) ([]byte, e
 		IOStreams:     iostreams,
 		TTY:           false,
 		Quiet:         false,
-		Stdin:         false,
+		Stdin:         true,
 	}
 
 	options := &exec.ExecOptions{
@@ -60,12 +69,12 @@ func (r *RemoteCommandExecutor) Run(containerName string, cmd string) ([]byte, e
 		PodClient:     r.client.CoreV1(),
 		Config:        r.cfg,
 		Executor:      &exec.DefaultRemoteExecutor{},
+		Command:       []string{"/bin/sh", "-c", cmd},
 	}
 
-	options.Command = []string{"/bin/sh", cmd}
 	err := options.Run()
 	if err != nil {
-		return errBuffer.Bytes(), fmt.Errorf("error during command execution: %v", err)
+		return errBuf.Bytes(), fmt.Errorf("error during command execution: %v", err)
 	}
-	return outBuffer.Bytes(), nil
+	return outBuf.Bytes(), nil
 }
