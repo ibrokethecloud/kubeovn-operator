@@ -69,8 +69,9 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{}, nil
 	}
 
-	if node.DeletionTimestamp != nil {
+	if !node.DeletionTimestamp.IsZero() {
 		// reconcile ovn north and south databases and check if there is a condition matching
+		r.Log.WithValues("node", node.GetName()).Info("reconilling deletion of node")
 		return r.reconcileNodeDeletion(ctx, config, node)
 	}
 

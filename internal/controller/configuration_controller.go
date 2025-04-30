@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -106,6 +107,7 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if reflect.DeepEqual(configObj.Status, config.Status) {
 		return ctrl.Result{}, nil
 	}
+
 	return ctrl.Result{}, r.Client.Status().Patch(ctx, config, client.MergeFrom(configObj))
 }
 
@@ -167,22 +169,18 @@ func (r *ConfigurationReconciler) applyObject(ctx context.Context, config *kubeo
 	return nil
 }
 
-// reconcileObject will create / update the managed objects
+// reconcileObject will mimic kubectl apply to apply objects
 func (r *ConfigurationReconciler) reconcileObject(ctx context.Context, obj client.Object) error {
-	existingObj := render.InitialiseNewObject(obj)
-	err := r.Client.Get(ctx, types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, existingObj)
+	var err error
+	unstructuredObj := &unstructured.Unstructured{}
+	unstructuredObj.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			r.Log.WithValues("objectName", obj.GetName()).Info("creating object")
-			return r.Create(ctx, obj)
-		}
-		return fmt.Errorf("error fetching object %s/%s: %v", obj.GetNamespace(), obj.GetName(), err)
+		return fmt.Errorf("error convering new object %s to unstructured object %v", obj.GetName(), err)
 	}
-	r.Log.WithValues("objectName", obj.GetName()).Info("updating object")
-	obj.SetResourceVersion(existingObj.GetResourceVersion())
-	return r.Patch(ctx, obj, client.MergeFrom(existingObj))
+	return r.Patch(ctx, unstructuredObj, client.Apply, client.FieldOwner("kubeovn-operator"))
 }
 
+// filterObject returns the configuration object if object is owned by the configuratino controller
 func (r *ConfigurationReconciler) filterObject(ctx context.Context, obj client.Object) []ctrl.Request {
 	ownerRefs := obj.GetOwnerReferences()
 	result := []ctrl.Request{}
@@ -198,6 +196,8 @@ func (r *ConfigurationReconciler) filterObject(ctx context.Context, obj client.O
 	return result
 }
 
+// AddWatches adds watches for all objects types being managed by the controller to ensure any changes
+// to managed objects results in reconcile of configuration object
 func (r *ConfigurationReconciler) AddWatches(b *builder.Builder) *builder.Builder {
 	for key := range templates.OrderedObjectList {
 		b.Watches(key, handler.EnqueueRequestsFromMapFunc(r.filterObject))
