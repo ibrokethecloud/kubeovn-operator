@@ -212,13 +212,13 @@ var _ = Describe("Manager", Ordered, func() {
 			//nolint:gosec
 			cmd = exec.Command("kubectl", "run", "curl-metrics", "--restart=Never",
 				"--namespace", namespace,
-				"--image=curlimages/curl:latest",
+				"--image=curlimages/curl:8.18.0",
 				"--overrides",
 				fmt.Sprintf(`{
 					"spec": {
 						"containers": [{
 							"name": "curl",
-							"image": "curlimages/curl:latest",
+							"image": "curlimages/curl:8.18.0",
 							"command": ["/bin/sh", "-c"],
 							"args": ["curl -v -k -H 'Authorization: Bearer %s' https://%s.%s.svc.cluster.local:8443/metrics"],
 							"securityContext": {
